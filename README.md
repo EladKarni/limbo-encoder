@@ -27,14 +27,14 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-
+[![Netlify Status](https://api.netlify.com/api/v1/badges/7181b6ab-977a-44cd-8b59-bfc1c5c6ec2b/deploy-status)](https://app.netlify.com/sites/limbo-encoder/deploys)
 
 
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
   <a href="https://github.com/EladKarni/limbo-encoder">
-    <img src="Resources/logo.png" alt="Logo" width="80" height="80">
+    <img src="https://github.com/EladKarni/limbo-encoder/blob/master/Resources/Logo.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Limbo Encoder</h3>
