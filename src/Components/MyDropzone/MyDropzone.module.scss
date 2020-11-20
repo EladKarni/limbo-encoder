@@ -1,0 +1,35 @@
+.dropzone {
+    width: 640px;
+    height: 360px;
+    background-color: #6b6d70;
+    box-sizing: border-box;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 15px;
+
+    &:hover {
+        background-color: #b9bbbe;
+    }
+
+    p {
+        font-size: 1.5em;
+    }
+}
+
+.dzActive {
+    width: 640px;
+    height: 360px;
+    background-color: #355585;
+    box-sizing: border-box;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    cursor: grabbing;
+    border: 5px dashed black;
+    border-radius: 15px;
+    padding: 1em;
+}

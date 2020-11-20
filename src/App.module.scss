@@ -1,0 +1,41 @@
+.App {
+  text-align: center;
+  width: 100vw;
+  height: 100vh;
+  background-color: #36393f;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  .container {
+    width: 100%;
+    width: 100%;
+  }
+
+  .spThanks {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    background: #2f3136;
+    color: #ffffff;
+    margin: 2em;
+    border-radius: 15px;
+    padding: 0 1em 1.25em 1em;
+
+    div {
+      margin: 0.75em 0;
+      display: flex;
+      font-size: 1.15em;
+      justify-content: left;
+      h4 {
+        margin: 0 1em 0 1em ;
+        color: #8b9297;
+      }
+      a {
+        text-decoration: none;
+        color: #04b0f4;
+      }
+    }
+   
+  }
+}

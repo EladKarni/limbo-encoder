@@ -1,0 +1,51 @@
+.btn {
+    border: none;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    background: none;
+    cursor: pointer;
+    padding: 25px 80px;
+    display: inline-block;
+    margin: 15px 30px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    outline: none;
+    position: relative;
+    transition: all 0.3s;
+    
+    background: #43b581;
+    color: #fff;
+    box-shadow: 0 6px #2d7c59;
+    transition: none;
+
+
+    border-radius: 20px;
+    &:hover {
+      box-shadow: 0 4px #2d7c59;
+      top: 2px;
+    }
+    
+    &:active {
+      box-shadow: 0 0 #2d7c59;
+      top: 6px;
+    }
+
+    &:after {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      transition: all 0.3s;
+    }
+
+    &:disabled {
+      background-color: #cec2c2;
+      box-shadow: 0 0 #803535;
+      transition: ease-in-out;
+      cursor: not-allowed;
+      &:hover {
+        top: 0;
+      }
+    }
+  }
