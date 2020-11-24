@@ -122,16 +122,13 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/EladKarni/repo.svg?style=flat-square
-[contributors-url]: https://github.com/EladKarni/repo/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/EladKarni/repo.svg?style=flat-square
-[forks-url]: https://github.com/EladKarni/repo/network/members
-[stars-shield]: https://img.shields.io/github/stars/EladKarni/repo.svg?style=flat-square
-[stars-url]: https://github.com/EladKarni/repo/stargazers
-[issues-shield]: https://img.shields.io/github/issues/EladKarni/repo.svg?style=flat-square
-[issues-url]: https://github.com/EladKarni/repo/issues
-[license-shield]: https://img.shields.io/github/license/EladKarni/repo.svg?style=flat-square
-[license-url]: https://github.com/EladKarni/repo/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/EladKarni
-[product-screenshot]: images/screenshot.png
+[contributors-shield]: https://img.shields.io/github/contributors/EladKarni/limbo-encoder.svg?style=flat-square
+[contributors-url]: https://github.com/EladKarni/limbo-encoder/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/EladKarni/limbo-encoder.svg?style=flat-square
+[forks-url]: https://github.com/EladKarni/limbo-encoder/network/members
+[stars-shield]: https://img.shields.io/github/stars/EladKarni/limbo-encoder.svg?style=flat-square
+[stars-url]: https://github.com/EladKarni/limbo-encoder/stargazers
+[issues-shield]: https://img.shields.io/github/issues/EladKarni/limbo-encoder.svg?style=flat-square
+[issues-url]: https://github.com/EladKarni/limbo-encoder/issues
+[license-shield]: https://img.shields.io/github/license/EladKarni/limbo-encoder.svg?style=flat-square
+[license-url]: https://github.com/EladKarni/limbo-encoder/blob/master/LICENSE.txt
