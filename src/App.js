@@ -29,7 +29,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setBitrate((((8000 * targetSize) / duration) * 0.96) - 128);
+    setBitrate((((8000 * targetSize) / duration) * 0.95) - 128);
     setBufferSize(bitrate * 2);
   }, [targetSize, bitrate, duration, encoded]);
 
@@ -38,7 +38,39 @@ function App() {
     ffmpeg.FS('writeFile', 'inputFile.mp4', await fetchFile(video));
 
     // Run the FFMpeg command
-    await ffmpeg.run('-i', 'inputFile.mp4', '-vf', 'scale=1280:720', '-r', '30', '-c:v', 'libx264', '-preset', 'superfast', '-b:v', `${bitrate}k`, '-minrate', `${bitrate}k`, '-maxrate', `${bitrate}k`, '-bufsize', `${bufferSize}k`, '-ac', '2', '-c:a', 'aac', '-b:a', '128k', 'encoded.mp4');
+    if (targetSize >= 50) {
+      await ffmpeg.run(
+        '-i', 'inputFile.mp4',
+        '-i', 'inputFile.mp4',
+        '-vf', 'scale=1920:1080',
+        '-c:v', 'libx264',
+        '-preset', 'superfast',
+        '-b:v', `${bitrate}k`,
+        '-minrate', `${bitrate}k`,
+        '-maxrate', `${bitrate}k`,
+        '-bufsize', `${bufferSize}k`,
+        '-ac', '2',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        'encoded.mp4',
+      );
+    } else {
+      await ffmpeg.run(
+        '-i', 'inputFile.mp4',
+        '-vf', 'scale=1280:720',
+        '-r', '30',
+        '-c:v', 'libx264',
+        '-preset', 'superfast',
+        '-b:v', `${bitrate}k`,
+        '-minrate', `${bitrate}k`,
+        '-maxrate', `${bitrate}k`,
+        '-bufsize', `${bufferSize}k`,
+        '-ac', '2',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        'encoded.mp4',
+      );
+    }
 
     // Read the result
     const data = ffmpeg.FS('readFile', 'encoded.mp4');
