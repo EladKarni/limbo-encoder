@@ -138,9 +138,7 @@ function App() {
           <a href="https://blog.otterbro.com/">Flaeri&apos;s Blog</a>
         </div>
         <div>
-          <h4>
-            Freepik
-          </h4>
+          <h4>Freepik</h4>
           <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a>
         </div>
       </div>
