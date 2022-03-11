@@ -5,6 +5,8 @@ const ffmpeg = createFFmpeg({ log: true });
 export default async ({
   video, targetSize, bitrate, bufferSize,
 }) => {
+  await ffmpeg.load();
+
   // Write the file to memory
   ffmpeg.FS('writeFile', 'inputFile.mp4', await fetchFile(video));
 

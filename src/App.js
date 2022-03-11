@@ -38,8 +38,8 @@ function App() {
     setProgress(ratio * 100);
   });
 
-  const startEncoding = () => {
-    setEncoded(EncodeToSize(video, targetSize, bitrate, bufferSize));
+  const startEncoding = async () => {
+    setEncoded(await EncodeToSize(video, targetSize, bitrate, bufferSize));
   };
 
   const renderSwitch = () => {
