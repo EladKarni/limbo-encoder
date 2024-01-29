@@ -14,6 +14,7 @@ function Selector({ progress, tSize, setTSize }) {
         <option value="8">Discord (Free, 8MB)</option>
         <option value="50">Discord (Level 2, 50MB)</option>
         <option value="100">Discord (Nitro, 100MB)</option>
+        <option value="500">Discord (Nitro, 500MB)</option>
       </select>
     </div>
   );
