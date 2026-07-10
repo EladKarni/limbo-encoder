@@ -1,35 +1,74 @@
+@import '../../styles/variables';
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
 .dropzone {
-    width: 640px;
-    height: 360px;
-    background-color: #6b6d70;
-    box-sizing: border-box;
-    margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 56px 32px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  aspect-ratio: 16 / 9;
+  min-height: 320px;
+  background: $panel;
+  border: 2px dashed $border-strong;
+  outline: none;
+
+  &:focus-visible {
+    border-color: $green;
+    box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.25);
+  }
+
+  .icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 22px;
+    background: $panel-raised;
+    border: 1px solid $border-strong;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    cursor: pointer;
-    border-radius: 15px;
+    margin-bottom: 22px;
+    animation: float 4s ease-in-out infinite;
+  }
 
-    &:hover {
-        background-color: #b9bbbe;
-    }
+  .headline {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: $text;
+  }
 
-    p {
-        font-size: 1.5em;
-    }
+  .sub {
+    font-size: 14.5px;
+    color: $muted;
+    max-width: 340px;
+    line-height: 1.5;
+  }
+
+  .cta {
+    margin-top: 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 22px;
+    background: $green;
+    color: $green-ink;
+    font-weight: 600;
+    border-radius: 12px;
+    font-size: 14.5px;
+  }
 }
 
 .dzActive {
-    width: 640px;
-    height: 360px;
-    background-color: #355585;
-    box-sizing: border-box;
-    margin: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    cursor: grabbing;
-    border: 5px dashed black;
-    border-radius: 15px;
-    padding: 1em;
+  composes: dropzone;
+  background: rgba(61, 220, 151, 0.07);
+  border-color: $green;
 }

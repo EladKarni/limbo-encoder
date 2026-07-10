@@ -1,0 +1,126 @@
+@import '../../styles/variables';
+
+.card {
+  background: $panel;
+  border: 1px solid $border;
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: $text;
+}
+
+.selected {
+  font-size: 12.5px;
+  font-family: $mono;
+  color: $green;
+}
+
+.track {
+  position: relative;
+  height: 44px;
+  border-radius: 10px;
+  background: $bg;
+  border: 1px solid $border;
+  overflow: hidden;
+}
+
+.ticks {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  gap: 3px;
+  padding: 6px;
+  opacity: 0.5;
+}
+
+.tick {
+  flex: 1;
+  background: $border;
+  border-radius: 1px;
+}
+
+.region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(61, 220, 151, 0.16);
+  border-left: 2px solid $green;
+  border-right: 2px solid $green;
+}
+
+.range {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    pointer-events: auto;
+    width: 14px;
+    height: 44px;
+    border-radius: 5px;
+    background: $green;
+    border: 2px solid $green-ink;
+    cursor: ew-resize;
+    box-shadow: 0 0 0 1px $green, 0 4px 12px rgba(61, 220, 151, 0.4);
+  }
+
+  &::-moz-range-thumb {
+    pointer-events: auto;
+    width: 14px;
+    height: 44px;
+    border-radius: 5px;
+    background: $green;
+    border: 2px solid $green-ink;
+    cursor: ew-resize;
+  }
+
+  &::-webkit-slider-runnable-track {
+    background: transparent;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible::-webkit-slider-thumb {
+    background: $green-bright;
+    box-shadow: 0 0 0 2px $text, 0 4px 12px rgba(61, 220, 151, 0.4);
+  }
+
+  &:focus-visible::-moz-range-thumb {
+    background: $green-bright;
+    box-shadow: 0 0 0 2px $text;
+  }
+}
+
+.legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 12px;
+  font-family: $mono;
+  color: $muted;
+}

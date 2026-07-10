@@ -1,19 +1,25 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import styles from './Button.module.scss';
+import { BoltIcon } from '../Icons/Icons';
 
-function Button({ sEncode, children, vStatus }) {
-  return <button type="button" disabled={!vStatus} className={styles.btn} onClick={sEncode}>{children}</button>;
+function Button({ onClick, disabled, children }) {
+  return (
+    <button type="button" disabled={disabled} className={styles.btn} onClick={onClick}>
+      <BoltIcon color={disabled ? '#5b6472' : '#06120c'} />
+      {children}
+    </button>
+  );
 }
 
 Button.defaultProps = {
-  vStatus: undefined,
+  disabled: false,
 };
 
 Button.propTypes = {
-  sEncode: PropTypes.func.isRequired,
-  children: PropTypes.string.isRequired,
-  vStatus: PropTypes.object,
+  onClick: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  children: PropTypes.node.isRequired,
 };
 
 export default Button;

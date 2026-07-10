@@ -1,0 +1,88 @@
+@import '../../styles/variables';
+
+.card {
+  background: linear-gradient(160deg, #14181f, #12151b);
+  border: 1px solid $border;
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: $muted;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.sizes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sizeLabel {
+  font-size: 11px;
+  color: $muted;
+  margin-bottom: 3px;
+}
+
+.sizeValue {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: $mono;
+  color: $text;
+}
+
+.target {
+  text-align: right;
+}
+
+.targetValue {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: $mono;
+  color: $green;
+}
+
+.bar {
+  margin-top: 16px;
+  height: 7px;
+  border-radius: 999px;
+  background: $bg;
+  overflow: hidden;
+  border: 1px solid $border;
+}
+
+.fill {
+  height: 100%;
+  background: linear-gradient(90deg, $green-dark, $green);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.reduction {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reductionLabel {
+  font-size: 12.5px;
+  color: $muted;
+}
+
+.smaller,
+.larger,
+.flat {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: $mono;
+}
+
+.smaller { color: $green; }
+.larger { color: $amber; }
+.flat { color: $muted; }

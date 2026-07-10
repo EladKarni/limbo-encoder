@@ -1,19 +1,28 @@
 import React from 'react';
-import { Line } from 'rc-progress';
 import PropTypes from 'prop-types';
 import styles from './ProgressBar.module.scss';
 
-function ProgressBar({ perc }) {
+function ProgressBar({ perc, name }) {
+  const pct = Math.min(100, Math.max(0, perc));
   return (
-    <div className={styles.progress}>
-      <h1>{`${perc.toFixed(2)}%`}</h1>
-      <Line percent={perc} strokeWidth="4" trailColor="#949494" strokeColor="#9c8383" />
+    <div className={styles.card}>
+      <div className={styles.ring}>
+        <div className={styles.track} />
+        <div className={styles.spinner} />
+        <div className={styles.pct}>{`${Math.round(pct)}%`}</div>
+      </div>
+      <div className={styles.headline}>Encoding&hellip;</div>
+      <div className={styles.name}>{name}</div>
+      <div className={styles.bar}>
+        <div className={styles.fill} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
 
 ProgressBar.propTypes = {
   perc: PropTypes.number.isRequired,
+  name: PropTypes.string.isRequired,
 };
 
 export default ProgressBar;

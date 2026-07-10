@@ -1,0 +1,111 @@
+@import '../../styles/variables';
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.wrap {
+  animation: rise 0.4s ease both;
+}
+
+.frame {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid $green;
+  background: #000;
+  aspect-ratio: 16 / 9;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+.badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: rgba(61, 220, 151, 0.95);
+  color: $green-ink;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: $mono;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+%action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  cursor: pointer;
+  font-family: $sans;
+  padding: 15px;
+  transition: all 0.15s ease;
+}
+
+.download {
+  @extend %action;
+
+  flex: 1 1 180px;
+  gap: 10px;
+  background: $green;
+  color: $green-ink;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  box-shadow: 0 8px 22px rgba(61, 220, 151, 0.25);
+
+  &:hover {
+    background: $green-bright;
+  }
+}
+
+.share {
+  @extend %action;
+
+  flex: 0 1 140px;
+  gap: 9px;
+  background: $panel-raised;
+  color: $text;
+  font-weight: 600;
+  font-size: 14.5px;
+  border: 1px solid $border-strong;
+
+  &:hover {
+    border-color: $green;
+  }
+}
+
+.redo {
+  @extend %action;
+
+  flex: 0 1 140px;
+  gap: 9px;
+  background: transparent;
+  color: $muted;
+  font-weight: 600;
+  font-size: 14.5px;
+  border: 1px solid $border;
+
+  &:hover {
+    color: $text;
+    border-color: $border-strong;
+  }
+}
