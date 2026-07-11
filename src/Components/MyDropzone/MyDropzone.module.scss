@@ -17,6 +17,7 @@
   transition: all 0.2s ease;
   aspect-ratio: 16 / 9;
   min-height: 320px;
+  flex-grow: 1; // fills the stage when it has spare height (phones); inert on desktop
   background: $panel;
   border: 2px dashed $border-strong;
   outline: none;
