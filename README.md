@@ -28,6 +28,10 @@
   </p>
 </p>
 
+<p align="center">
+  <img src="Resources/screenshot.gif" alt="Limbo Encoder shrinking a video to fit an upload limit" width="800">
+</p>
+
 
 ## Table of Contents
 
@@ -110,6 +114,29 @@ retry with a corrected bitrate if the result is over target.
 - AV1/HEVC *input* requires a WebCodecs-capable browser (Chrome, Edge, recent
   Firefox/Safari); the wasm fallback cannot decode AV1.
 
+### Offline & repeat visits
+
+A service worker (generated at build time from
+[`scripts/sw.template.js`](scripts/sw.template.js)) keeps the app usable
+without a round-trip to the network:
+
+- **Repeat visits skip the ~33 MB download.** The versioned encoder runtime
+  (wasm core, mp4box, mp4-muxer) is stored in Cache Storage on first use and
+  served from there on every later visit — only a dependency version bump
+  fetches fresh bytes.
+- **Offline shell.** The app shell is cached as you use it (network-first, so
+  deploys still propagate), so an already-visited install opens and runs
+  offline.
+- **Installable PWA.** With the runtime cached and a real manifest, the app
+  meets installability criteria — Chrome offers *Install Limbo Encoder*, and
+  it launches standalone.
+
+The worker is deliberately conservative: it never `skipWaiting()`s (an early
+activation would drop the runtime cache that still-open tabs depend on for
+engine recovery) and it caches responses complete with their original
+COOP/COEP headers (synthesizing responses would silently disable
+`SharedArrayBuffer`). It registers in production builds only.
+
 ### Built With
 
 - [WebCodecs](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API) — browser-native (hardware) decode/encode
@@ -159,8 +186,12 @@ for = "/*"
     Cross-Origin-Embedder-Policy = "require-corp"
 ```
 
-Everything (including the ~32 MB wasm core) is served same-origin; there are no
-runtime CDN dependencies.
+All *encoding* runs locally: everything the pipelines touch (including the
+~32 MB wasm core) is served same-origin, so nothing is uploaded and the app
+keeps working if you lose connectivity mid-encode. The one exception is an
+optional third-party widget — the Ko-fi support button, loaded from
+`storage.ko-fi.com` — which degrades gracefully (the app renders without it)
+when it's blocked or you're offline.
 
 
 ## Contributing
@@ -201,4 +232,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 [issues-shield]: https://img.shields.io/github/issues/EladKarni/limbo-encoder.svg?style=flat-square
 [issues-url]: https://github.com/EladKarni/limbo-encoder/issues
 [license-shield]: https://img.shields.io/github/license/EladKarni/limbo-encoder.svg?style=flat-square
-[license-url]: https://github.com/EladKarni/limbo-encoder/blob/master/LICENSE.txt
+[license-url]: https://github.com/EladKarni/limbo-encoder/blob/master/LICENSE

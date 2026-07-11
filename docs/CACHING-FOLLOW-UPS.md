@@ -43,15 +43,7 @@ Deferring would load the engine only when a file actually needs the wasm path
 Explicitly discussed during planning and left un-approved — do not implement
 without deciding the tradeoff is worth it.
 
-## 3. Fix `public/manifest.json` (small, timely)
-
-Still the CRA stock file ("Create React App Sample", default icons). With the
-service worker landed the app now meets PWA installability criteria, so
-Chrome offers "Install Limbo Encoder" — and the prompt text and installed
-icon come from the manifest. Wants: real `name`/`short_name`, theme/background
-color `#0a0c10`, real icons. Dovetails with the favicon/OG branding pass.
-
-## 4. Review-accepted low-severity items (fine to leave; noted for honesty)
+## 3. Review-accepted low-severity items (fine to leave; noted for honesty)
 
 From the adversarial review of `ae76e54`; accepted as tradeoffs of the
 no-precache SW design:
