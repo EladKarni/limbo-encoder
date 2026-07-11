@@ -16,7 +16,6 @@ export default function useToast() {
     timerRef.current = setTimeout(() => setToast(null), tone === 'error' ? 6000 : 2400);
   }, []);
 
-  // Clear a pending dismissal on unmount.
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
   return { toast, showToast };

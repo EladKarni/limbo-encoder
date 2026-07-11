@@ -113,6 +113,5 @@ export default function useFiles(showToast) {
     updateFile,
     addFiles,
     removeFile,
-    oversizedMsg,
   };
 }

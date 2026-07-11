@@ -30,7 +30,10 @@ export function encodeBlocker(f) {
   return null;
 }
 
-// The transcodeMp4 options derived from a file record's advanced settings.
+// Whether a file is ready to encode right now (used to enable Convert) — the
+// same rule encodeBlocker enforces, without the message.
+export const canEncode = (f) => encodeBlocker(f) === null;
+
 export function webCodecsOpts(f, onProgress) {
   return {
     file: f.file,
@@ -43,7 +46,6 @@ export function webCodecsOpts(f, onProgress) {
   };
 }
 
-// The transcodeWasm options derived from a file record's advanced settings.
 export function wasmOpts(f, id, codec, onRetry) {
   const srcH = f.height || 1080;
   return {
@@ -65,7 +67,6 @@ export function wasmOpts(f, id, codec, onRetry) {
   };
 }
 
-// The done-state patch for a finished encode.
 export function donePatch(blob, mime, ext) {
   return {
     status: 'done',
@@ -79,6 +80,7 @@ export function donePatch(blob, mime, ext) {
 }
 
 const clampPct = (p) => Math.min(100, Math.max(0, p));
+const errMsg = (err) => String((err && err.message) || err);
 
 // The WebCodecs fast path. Returns true on success, false when it failed AND
 // the wasm ceiling forbids a fallback (already surfaced in the error card), or
@@ -94,7 +96,7 @@ export async function webCodecsPass(ctx, f, id) {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.warn('WebCodecs path failed:', err);
-    logTailRef.current.push(`WebCodecs: ${err && err.message ? err.message : err}`);
+    logTailRef.current.push(`WebCodecs: ${errMsg(err)}`);
     // An output this large is beyond the wasm engine's ceiling, so falling back
     // would only trade this failure for a slower, guaranteed one — fail
     // honestly in the persistent card instead.
@@ -123,7 +125,7 @@ export async function wasmPass(ctx, f, id, codec) {
     // eslint-disable-next-line no-console
     console.error(err);
     failed = true;
-    failEncode(id, f.name, String(err && err.message ? err.message : err));
+    failEncode(id, f.name, errMsg(err));
     return false;
   } finally {
     if (failed) {
