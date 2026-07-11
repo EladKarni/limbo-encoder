@@ -1,0 +1,16 @@
+@import '../../styles/variables';
+
+.stage {
+  flex: 1 1 480px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: $bp-mobile) {
+  .stage {
+    flex: 1 0 auto;
+    min-width: 0;
+  }
+}

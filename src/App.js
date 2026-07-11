@@ -3,21 +3,13 @@ import React, {
 } from 'react';
 import styles from './App.module.scss';
 
-import MyDropzone, { ACCEPT_VIDEO } from './Components/MyDropzone/MyDropzone';
-import VideoPreview from './Components/VideoPreview/VideoPreview';
-import TrimBar from './Components/TrimBar/TrimBar';
-import ProgressBar from './Components/ProgressBar/ProgressBar';
-import DoneCard from './Components/DoneCard/DoneCard';
-import ErrorCard from './Components/ErrorCard/ErrorCard';
-import FileChips from './Components/FileChips/FileChips';
-import Selector, { PLATFORMS } from './Components/Selector/Selector';
-import EstimateCard from './Components/EstimateCard/EstimateCard';
-import AdvancedPanel from './Components/AdvancedPanel/AdvancedPanel';
-import Button from './Components/Button/Button';
+import Header from './Components/Header/Header';
+import Stage from './Components/Stage/Stage';
+import Sidebar from './Components/Sidebar/Sidebar';
 import Toast from './Components/Toast/Toast';
-import { LogoMark } from './Components/Icons/Icons';
-import WarningNote from './Components/WarningNote/WarningNote';
 import KofiWidget from './Components/KofiWidget/KofiWidget';
+import { ACCEPT_VIDEO } from './Components/MyDropzone/MyDropzone';
+import { PLATFORMS } from './Components/Selector/Selector';
 import { CODECS, CODEC_OPTIONS, MAX_INPUT_BYTES } from './utils/codecs';
 import {
   effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
@@ -423,130 +415,41 @@ function App() {
     <div className={styles.app}>
       <div className={styles.glow} />
       <div className={styles.shell}>
-        <header className={styles.header}>
-          <div className={styles.brand}>
-            <div className={styles.logo}>
-              <LogoMark size={36} />
-            </div>
-            <div>
-              <div className={styles.title}>
-                LIMBO
-                <span>·</span>
-                ENCODER
-              </div>
-              <div className={styles.tagline}>Shrink any video to fit any upload limit</div>
-            </div>
-          </div>
-          <div
-            className={{
-              ready: styles.pill,
-              loading: styles.pillLoading,
-              error: styles.pillError,
-            }[engine]}
-          >
-            <span className={styles.pillDot} />
-            <span>
-              {{
-                ready: '100% local · nothing uploaded',
-                loading: 'loading encoder…',
-                error: 'encoder failed to load — reload to retry',
-              }[engine]}
-            </span>
-          </div>
-        </header>
+        <Header engine={engine} />
 
         <main className={styles.main}>
-          <section className={styles.stage}>
-            {!active && <MyDropzone onFiles={addFiles} />}
-
-            {active && active.status === 'ready' && (
-              <>
-                <VideoPreview
-                  url={active.url}
-                  name={active.name}
-                  onDuration={(d) => {
-                    if (!Number.isFinite(d)) return;
-                    updateFile(active.id, { duration: d, trimEnd: active.trimEnd || d });
-                  }}
-                />
-                <TrimBar
-                  duration={active.duration}
-                  trimStart={active.trimStart}
-                  trimEnd={active.trimEnd}
-                  onChange={(patch) => updateFile(active.id, patch)}
-                />
-                {overWasmCeiling(active, plannedPath(active)) && (
-                  <WarningNote>{overCeilingMsg}</WarningNote>
-                )}
-              </>
-            )}
-
-            {active && active.status === 'encoding' && (
-              <ProgressBar perc={active.progress} name={active.name} />
-            )}
-
-            {active && active.status === 'done' && (
-              <DoneCard
-                url={active.outUrl}
-                outBytes={active.outBytes || 0}
-                onDownload={download}
-                onShare={share}
-                onRedo={redo}
-              />
-            )}
-
-            {active && active.status === 'error' && (
-              <ErrorCard
-                name={active.name}
-                log={active.errorLog}
-                onRetry={() => updateFile(active.id, { status: 'ready', progress: 0, errorLog: null })}
-              />
-            )}
-
-            {files.length > 0 && (
-              <FileChips
-                files={files}
-                activeId={active ? active.id : null}
-                onSelect={setActiveId}
-                onRemove={removeFile}
-                onAdd={openPicker}
-              />
-            )}
-          </section>
+          <Stage
+            active={active}
+            files={files}
+            overCeiling={Boolean(active) && overWasmCeiling(active, plannedPath(active))}
+            overCeilingMsg={overCeilingMsg}
+            onFiles={addFiles}
+            onUpdate={updateFile}
+            onDownload={download}
+            onShare={share}
+            onRedo={redo}
+            onRetry={(id) => updateFile(id, { status: 'ready', progress: 0, errorLog: null })}
+            onSelect={setActiveId}
+            onRemove={removeFile}
+            onAdd={openPicker}
+          />
 
           {active && (
-            <aside
-              className={isEncoding ? styles.sidebarDimmed : styles.sidebar}
-              {...(isEncoding ? { inert: '' } : {})}
-            >
-              <Selector
-                platform={active.platform}
-                targetMB={active.targetMB}
-                onSelect={(p) => updateFile(active.id, { targetMB: p.mb, platform: p.id })}
-                onCustom={(mb) => updateFile(active.id, {
-                  targetMB: Number.isNaN(mb) ? 0 : mb,
-                  platform: 'custom',
-                })}
-              />
-              <EstimateCard
-                origBytes={active.size}
-                estBytes={estimateOutBytes(active)}
-              />
-              <AdvancedPanel
-                open={showAdv}
-                onToggle={() => setShowAdv((s) => !s)}
-                res={active.res}
-                codec={active.codec}
-                fps={active.fps}
-                codecOptions={CODEC_OPTIONS}
-                codecHint={(CODECS[active.codec] || CODECS['H.264']).hint}
-                onChange={(patch) => updateFile(active.id, patch)}
-                bitrateLabel={bitrateLabel}
-              />
-              <Button onClick={convert} disabled={!ready || !canConvert}>
-                {convertLabel}
-              </Button>
-            </aside>
+            <Sidebar
+              active={active}
+              isEncoding={isEncoding}
+              showAdv={showAdv}
+              codecOptions={CODEC_OPTIONS}
+              codecHint={(CODECS[active.codec] || CODECS['H.264']).hint}
+              estBytes={estimateOutBytes(active)}
+              bitrateLabel={bitrateLabel}
+              convertLabel={convertLabel}
+              canConvert={canConvert}
+              ready={ready}
+              onUpdate={updateFile}
+              onToggleAdv={() => setShowAdv((s) => !s)}
+              onConvert={convert}
+            />
           )}
         </main>
 

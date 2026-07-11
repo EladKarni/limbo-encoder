@@ -1,0 +1,25 @@
+@import '../../styles/variables';
+
+.sidebar {
+  flex: 1 1 340px;
+  min-width: 300px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebarDimmed {
+  composes: sidebar;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+@media (max-width: $bp-mobile) {
+  // in a column, the row flex-basis (340px) would become a forced height
+  .sidebar {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: none;
+  }
+}
