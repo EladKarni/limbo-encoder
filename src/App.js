@@ -583,6 +583,7 @@ function App() {
                 codec={active.codec}
                 fps={active.fps}
                 codecOptions={CODEC_OPTIONS}
+                codecHint={(CODECS[active.codec] || CODECS['H.264']).hint}
                 onChange={(patch) => updateFile(active.id, patch)}
                 bitrateLabel={bitrateLabel}
               />

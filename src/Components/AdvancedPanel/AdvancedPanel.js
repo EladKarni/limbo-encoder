@@ -36,7 +36,7 @@ Row.propTypes = {
 };
 
 function AdvancedPanel({
-  open, onToggle, res, codec, fps, codecOptions, onChange, bitrateLabel,
+  open, onToggle, res, codec, fps, codecOptions, codecHint, onChange, bitrateLabel,
 }) {
   return (
     <div className={styles.card}>
@@ -63,6 +63,7 @@ function AdvancedPanel({
             options={codecOptions}
             onChange={(v) => onChange({ codec: v })}
           />
+          {codecHint && <div className={styles.hint}>{codecHint}</div>}
           <Row
             label="Frame rate"
             value={fps}
@@ -86,8 +87,13 @@ AdvancedPanel.propTypes = {
   codec: PropTypes.string.isRequired,
   fps: PropTypes.string.isRequired,
   codecOptions: PropTypes.arrayOf(PropTypes.string).isRequired,
+  codecHint: PropTypes.string,
   onChange: PropTypes.func.isRequired,
   bitrateLabel: PropTypes.string.isRequired,
+};
+
+AdvancedPanel.defaultProps = {
+  codecHint: null,
 };
 
 export default AdvancedPanel;

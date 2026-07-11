@@ -9,6 +9,8 @@ export const CODECS = {
     audioArgs: ['-c:a', 'aac', '-b:a', '128k'],
     ext: 'mp4',
     mime: 'video/mp4',
+    hint: 'Fast — uses your GPU when available. Hardware encoding trades a touch of '
+      + 'quality per MB for a lot of speed.',
   },
   // The core also ships libx265 and libvpx-vp9, but neither survives this
   // wasm build: x265 has no SIMD and deadlocks the pthread pool, and vp9
@@ -21,6 +23,8 @@ export const CODECS = {
     audioArgs: ['-c:a', 'libvorbis', '-b:a', '128k'],
     ext: 'webm',
     mime: 'video/webm',
+    hint: 'Much slower — no GPU, single CPU thread in the browser. Pick it only when '
+      + 'you specifically need a .webm file.',
   },
 };
 
