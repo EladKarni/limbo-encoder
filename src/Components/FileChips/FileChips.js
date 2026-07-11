@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import styles from './FileChips.module.scss';
 import { PlusIcon, CloseIcon } from '../Icons/Icons';
 import { fmtBytes } from '../../utils/format';
+import fileShape from '../../fileShape';
 
 const STATUS_COLORS = {
   done: '#4ee894',
@@ -60,7 +61,7 @@ function FileChips({
 }
 
 FileChips.propTypes = {
-  files: PropTypes.arrayOf(PropTypes.object).isRequired,
+  files: PropTypes.arrayOf(fileShape).isRequired,
   activeId: PropTypes.string,
   onSelect: PropTypes.func.isRequired,
   onRemove: PropTypes.func.isRequired,

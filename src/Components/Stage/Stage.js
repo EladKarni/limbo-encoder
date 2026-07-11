@@ -10,6 +10,7 @@ import DoneCard from '../DoneCard/DoneCard';
 import ErrorCard from '../ErrorCard/ErrorCard';
 import FileChips from '../FileChips/FileChips';
 import WarningNote from '../WarningNote/WarningNote';
+import fileShape from '../../fileShape';
 
 // The main panel: renders by the active file's status (dropzone -> preview +
 // trim -> progress -> done -> error), with the batch chips row underneath.
@@ -79,8 +80,8 @@ function Stage({
 }
 
 Stage.propTypes = {
-  active: PropTypes.object,
-  files: PropTypes.arrayOf(PropTypes.object).isRequired,
+  active: fileShape,
+  files: PropTypes.arrayOf(fileShape).isRequired,
   overCeiling: PropTypes.bool.isRequired,
   overCeilingMsg: PropTypes.string.isRequired,
   onFiles: PropTypes.func.isRequired,

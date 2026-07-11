@@ -28,7 +28,7 @@ function Header({ engine }) {
           <div className={styles.tagline}>Shrink any video to fit any upload limit</div>
         </div>
       </div>
-      <div className={styles[PILL_CLASS[engine]]}>
+      <div className={styles[PILL_CLASS[engine]]} role="status" aria-live="polite">
         <span className={styles.pillDot} />
         <span>{PILL_TEXT[engine]}</span>
       </div>

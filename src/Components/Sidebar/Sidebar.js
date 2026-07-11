@@ -6,6 +6,7 @@ import Selector from '../Selector/Selector';
 import EstimateCard from '../EstimateCard/EstimateCard';
 import AdvancedPanel from '../AdvancedPanel/AdvancedPanel';
 import Button from '../Button/Button';
+import fileShape from '../../fileShape';
 
 // The settings rail for the active file: target preset, size estimate,
 // advanced encode settings, and the Convert button. Dimmed and made inert
@@ -49,7 +50,7 @@ function Sidebar({
 }
 
 Sidebar.propTypes = {
-  active: PropTypes.object.isRequired,
+  active: fileShape.isRequired,
   isEncoding: PropTypes.bool.isRequired,
   showAdv: PropTypes.bool.isRequired,
   codecOptions: PropTypes.arrayOf(PropTypes.string).isRequired,
