@@ -2,9 +2,7 @@ import {
   useRef, useEffect, useMemo, useCallback,
 } from 'react';
 import { parseTimeSecs } from '../utils/ffmpegEncoder';
-import {
-  runEncode, runBatch, selectEncodeIds, overCeilingMsg,
-} from '../utils/encodePipeline';
+import { runBatch, selectEncodeIds } from '../utils/encodePipeline';
 
 // React binding for the encode pipeline (src/utils/encodePipeline.js): owns the
 // in-flight refs and the failure/log surfaces, assembles the pipeline context,
@@ -61,8 +59,6 @@ export default function useEncoder({
     logTailRef,
   }), [filesRef, updateFile, setActiveId, showToast, setEngine, failEncode]);
 
-  const encodeOne = useCallback((id) => runEncode(ctx, id), [ctx]);
-
   // A Convert click: encode the selected ids (batch or active), then report a
   // batch summary. Guarded by the caller for engine-ready / not-already-encoding.
   const convert = useCallback(async (files, active) => {
@@ -75,5 +71,5 @@ export default function useEncoder({
     }
   }, [ctx, showToast]);
 
-  return { encodeOne, convert, overCeilingMsg };
+  return { convert };
 }
