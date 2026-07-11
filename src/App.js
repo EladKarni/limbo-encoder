@@ -1,6 +1,4 @@
-import React, {
-  useState, useEffect, useRef, useCallback,
-} from 'react';
+import React, { useState, useRef } from 'react';
 import styles from './App.module.scss';
 
 import Header from './Components/Header/Header';
@@ -8,335 +6,41 @@ import Stage from './Components/Stage/Stage';
 import Sidebar from './Components/Sidebar/Sidebar';
 import Toast from './Components/Toast/Toast';
 import KofiWidget from './Components/KofiWidget/KofiWidget';
-import { ACCEPT_VIDEO, PLATFORMS, isAcceptedVideo } from './utils/presets';
-import { CODECS, CODEC_OPTIONS, MAX_INPUT_BYTES } from './utils/codecs';
+import { ACCEPT_VIDEO } from './utils/presets';
+import { CODECS, CODEC_OPTIONS } from './utils/codecs';
 import {
-  effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
-  WASM_MAX_OUTPUT_BYTES, plannedOutBytes, overWasmCeiling,
+  bitrateKbps, estimateOutBytes, isTargetReachable, overWasmCeiling,
 } from './utils/fit';
-import { plannedPath, transcodeMp4 } from './utils/webcodecs';
-import {
-  hasFfmpeg, loadEngine, onLog, parseTimeSecs, transcodeWasm, recover,
-} from './utils/ffmpegEncoder';
-
-let uid = 0;
-function genId() {
-  uid += 1;
-  return `f${uid}`;
-}
+import { plannedPath } from './utils/webcodecs';
+import useToast from './hooks/useToast';
+import useFiles from './hooks/useFiles';
+import useEngine from './hooks/useEngine';
+import useEncoder from './hooks/useEncoder';
 
 function baseName(name) {
   return name.replace(/\.[^.]+$/, '');
 }
 
-// Copy for files whose input size is over the app's cap. The cap is 4 GiB
-// (binary), but the label is deliberately the round decimal "4 GB": dividing
-// by 1e9 and flooring turns 4·1024^3 (≈4.29e9) back into 4 for the user.
-const oversizedMsg = (name) => (
-  `${name} is over ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB — trim it into parts first`
-);
-
-// Copy for targets the wasm engine cannot deliver (rendered from the
-// constant so the number can never drift from the enforced ceiling). The
-// overWasmCeiling rule itself lives in fit.js; App supplies the planned path
-// and this user-facing copy.
-const overCeilingMsg = `Sizes over ${Math.round(WASM_MAX_OUTPUT_BYTES / 1e6)} MB `
-  + 'aren\'t available for this type of video. Please choose a smaller target.';
-
-// The reason a file cannot be encoded right now, as user-facing copy, or null
-// when it is ready to go. Same order of checks as the encode guard.
-function encodeBlocker(f) {
-  if (!f || f.status !== 'ready') return '';
-  if (!f.duration) return `Could not read the duration of ${f.name}`;
-  if (!(f.targetMB > 0)) return `Set a target size for ${f.name} first`;
-  if (!isTargetReachable(f)) return `Target too small for ${f.name} — trim it or pick a larger limit`;
-  if (f.size > MAX_INPUT_BYTES) return oversizedMsg(f.name);
-  if (overWasmCeiling(f, plannedPath(f))) return `${f.name}: ${overCeilingMsg}`;
-  return null;
-}
-
-// The transcodeMp4 options derived from a file record's advanced settings.
-function webCodecsOpts(f, onProgress) {
-  return {
-    file: f.file,
-    targetMB: f.targetMB,
-    trimStart: f.trimStart || 0,
-    trimEnd: f.trimEnd && f.trimEnd < f.duration - 0.05 ? f.trimEnd : 0,
-    resHeight: f.res !== 'Original' ? parseInt(f.res, 10) : 0,
-    fpsOut: f.fps !== 'Original' ? parseInt(f.fps, 10) : 0,
-    onProgress,
-  };
-}
-
-// The transcodeWasm options derived from a file record's advanced settings.
-function wasmOpts(f, id, codec, onRetry) {
-  const srcH = f.height || 1080;
-  return {
-    id,
-    file: f.file,
-    codec,
-    startBitrateKbps: bitrateKbps(f),
-    targetMB: f.targetMB,
-    targetBytes: f.targetMB * 1e6,
-    srcW: f.width || 1920,
-    srcH,
-    fpsForBudget: f.fps !== 'Original' ? parseInt(f.fps, 10) : 30,
-    userMaxH: f.res !== 'Original' ? parseInt(f.res, 10) : srcH,
-    durationSec: effDur(f),
-    trimStart: f.trimStart,
-    trimEnd: f.trimEnd,
-    fps: f.fps,
-    onRetry,
-  };
-}
-
-// The done-state patch for a finished encode.
-function donePatch(blob, mime, ext) {
-  return {
-    status: 'done',
-    progress: 100,
-    outUrl: URL.createObjectURL(blob),
-    outBlob: blob,
-    outBytes: blob.size,
-    outMime: mime,
-    outExt: ext,
-  };
-}
-
+// The composition root: wires the state hooks (toast, files, engine, encoder)
+// to the three presentational panels. All app state lives in these hooks under
+// App's tree; the components below are props-in / callbacks-out.
 function App() {
-  const [engine, setEngine] = useState('loading');
-  const ready = engine === 'ready';
-  const [files, setFiles] = useState([]);
-  const [activeId, setActiveId] = useState(null);
-  const [showAdv, setShowAdv] = useState(false);
-  const [toast, setToast] = useState(null);
+  const { toast, showToast } = useToast();
+  const {
+    files, filesRef, activeId, setActiveId, updateFile, addFiles, removeFile,
+  } = useFiles(showToast);
+  const { engine, setEngine, setLogHandler } = useEngine(showToast);
+  const { encodeOne, overCeilingMsg } = useEncoder({
+    filesRef, updateFile, setActiveId, showToast, setEngine, setLogHandler,
+  });
 
-  const filesRef = useRef(files);
-  const encodingIdRef = useRef(null);
-  // Output duration of the encode in flight; progress is parsed out of
-  // ffmpeg's own "time=" log lines against this (the core's progress events
-  // are unreliable — they can report 0 or >1 for real-world files).
-  const encodingDurRef = useRef(0);
-  // Rolling tail of ffmpeg log lines, kept for the error card.
-  const logTailRef = useRef([]);
-  const toastTimerRef = useRef(null);
+  const [showAdv, setShowAdv] = useState(false);
   const pickerRef = useRef(null);
 
-  useEffect(() => {
-    filesRef.current = files;
-  }, [files]);
-
-  const showToast = useCallback((message, tone = 'ok') => {
-    clearTimeout(toastTimerRef.current);
-    setToast({ message, tone });
-    // Errors carry more text and more consequence — leave them up longer.
-    toastTimerRef.current = setTimeout(() => setToast(null), tone === 'error' ? 6000 : 2400);
-  }, []);
-
-  const updateFile = useCallback((id, patch) => {
-    setFiles((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
-  }, []);
-
-  // Shared failure surface for both encode paths: the persistent error card
-  // carrying the log tail (never toast-only) plus a transient toast.
-  const failEncode = useCallback((id, name, lastLine) => {
-    updateFile(id, {
-      status: 'error',
-      progress: 0,
-      errorLog: [...logTailRef.current, lastLine].join('\n'),
-    });
-    showToast(`Encoding ${name} failed`, 'error');
-  }, [updateFile, showToast]);
-
-  useEffect(() => {
-    if (!hasFfmpeg) {
-      setEngine('error');
-      return undefined;
-    }
-    onLog((message) => {
-      // eslint-disable-next-line no-console
-      console.log(message);
-      logTailRef.current.push(message);
-      if (logTailRef.current.length > 30) logTailRef.current.shift();
-      const id = encodingIdRef.current;
-      const dur = encodingDurRef.current;
-      if (!id || !dur) return;
-      const secs = parseTimeSecs(message);
-      if (secs === null) return;
-      updateFile(id, { progress: Math.min(100, Math.max(0, (secs / dur) * 100)) });
-    });
-    loadEngine()
-      .then(() => setEngine('ready'))
-      .catch((err) => {
-        // eslint-disable-next-line no-console
-        console.error(err);
-        setEngine('error');
-        showToast('Failed to load the encoder engine', 'error');
-      });
-    return () => clearTimeout(toastTimerRef.current);
-  }, [showToast, updateFile]);
-
-  const loadMeta = useCallback((id, url, name) => {
-    const probe = document.createElement('video');
-    probe.preload = 'metadata';
-    probe.onloadedmetadata = () => {
-      const d = Number.isFinite(probe.duration) ? probe.duration : 0;
-      updateFile(id, {
-        duration: d,
-        trimEnd: d,
-        width: probe.videoWidth || 0,
-        height: probe.videoHeight || 0,
-      });
-    };
-    probe.onerror = () => {
-      showToast(`${name} could not be read as a video`, 'error');
-    };
-    probe.src = url;
-  }, [updateFile, showToast]);
-
-  const addFiles = useCallback((list) => {
-    const videos = [...list].filter(isAcceptedVideo);
-    const oversized = videos.find((f) => f.size > MAX_INPUT_BYTES);
-    if (oversized) {
-      showToast(oversizedMsg(oversized.name), 'error');
-    }
-    const accepted = videos.filter((f) => f.size <= MAX_INPUT_BYTES);
-    if (!accepted.length) return;
-    const defaultPlatform = PLATFORMS[0];
-    const created = accepted.map((f) => ({
-      id: genId(),
-      file: f,
-      name: f.name,
-      size: f.size,
-      url: URL.createObjectURL(f),
-      duration: 0,
-      trimStart: 0,
-      trimEnd: 0,
-      targetMB: defaultPlatform.mb,
-      platform: defaultPlatform.id,
-      res: 'Original',
-      codec: CODEC_OPTIONS[0],
-      fps: 'Original',
-      status: 'ready',
-      progress: 0,
-      outUrl: null,
-      outBlob: null,
-      outBytes: null,
-      outMime: null,
-      outExt: null,
-    }));
-    setFiles((fs) => [...fs, ...created]);
-    setActiveId((prev) => prev || created[0].id);
-    created.forEach((f) => loadMeta(f.id, f.url, f.name));
-  }, [loadMeta, showToast]);
-
-  const removeFile = useCallback((id) => {
-    const f = filesRef.current.find((x) => x.id === id);
-    if (!f) return;
-    if (f.status === 'encoding') {
-      showToast('Wait for the current encode to finish');
-      return;
-    }
-    URL.revokeObjectURL(f.url);
-    if (f.outUrl) URL.revokeObjectURL(f.outUrl);
-    setFiles((fs) => fs.filter((x) => x.id !== id));
-    setActiveId((prev) => {
-      if (prev !== id) return prev;
-      const rest = filesRef.current.filter((x) => x.id !== id);
-      return rest[0] ? rest[0].id : null;
-    });
-  }, [showToast]);
-
+  const ready = engine === 'ready';
   const active = files.find((f) => f.id === activeId) || files[0] || null;
   const isEncoding = files.some((f) => f.status === 'encoding');
   const readyCount = files.filter((f) => f.status === 'ready').length;
-
-  // The WebCodecs fast path: for mp4/mov sources targeting H.264, transcode
-  // with the browser's own decoders/encoders. Returns true on success, false
-  // when it failed AND the wasm ceiling forbids a fallback (already surfaced
-  // in the error card), or null to fall through to the wasm encoder.
-  const runWebCodecs = useCallback(async (f, id) => {
-    try {
-      const blob = await transcodeMp4(webCodecsOpts(f, (p) => updateFile(id, {
-        progress: Math.min(100, Math.max(0, p * 100)),
-      })));
-      updateFile(id, donePatch(blob, 'video/mp4', 'mp4'));
-      return true;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('WebCodecs path failed:', err);
-      logTailRef.current.push(`WebCodecs: ${err && err.message ? err.message : err}`);
-      // An output this large is beyond the wasm engine's ceiling, so falling
-      // back would only trade this failure for a slower, guaranteed one —
-      // fail honestly in the persistent card instead.
-      if (plannedOutBytes(f) > WASM_MAX_OUTPUT_BYTES) {
-        failEncode(id, f.name, 'This video couldn\'t be converted at this size. Try a smaller target.');
-        return false;
-      }
-      updateFile(id, { progress: 0 });
-      return null;
-    }
-  }, [updateFile, failEncode]);
-
-  // The ffmpeg.wasm path. On failure the aborted core is unusable, so recover()
-  // (terminate + reload) is the only safe cleanup; on success transcodeWasm
-  // already cleaned the FS.
-  const runWasm = useCallback(async (f, id, codec) => {
-    let failed = false;
-    try {
-      const outBlob = await transcodeWasm(
-        wasmOpts(f, id, codec, () => updateFile(id, { progress: 0 })),
-      );
-      updateFile(id, donePatch(outBlob, codec.mime, codec.ext));
-      return true;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      failed = true;
-      failEncode(id, f.name, String(err && err.message ? err.message : err));
-      return false;
-    } finally {
-      if (failed) {
-        setEngine('loading');
-        try {
-          await recover();
-          setEngine('ready');
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-          setEngine('error');
-        }
-      }
-    }
-  }, [updateFile, failEncode]);
-
-  // Router: validate, mark encoding, try the fast path, then the wasm path.
-  const encodeOne = useCallback(async (id) => {
-    const f = filesRef.current.find((x) => x.id === id);
-    const blocker = encodeBlocker(f);
-    if (blocker === '') return false; // not ready; no message
-    if (blocker) {
-      showToast(blocker, 'error');
-      return false;
-    }
-
-    encodingIdRef.current = id;
-    encodingDurRef.current = effDur(f);
-    logTailRef.current = [];
-    setActiveId(id);
-    updateFile(id, { status: 'encoding', progress: 0 });
-
-    const codec = CODECS[f.codec] || CODECS['H.264'];
-    try {
-      if (plannedPath(f) === 'webcodecs') {
-        const fast = await runWebCodecs(f, id);
-        if (fast !== null) return fast; // succeeded, or failed past the ceiling
-      }
-      return await runWasm(f, id, codec);
-    } finally {
-      encodingIdRef.current = null;
-    }
-  }, [showToast, updateFile, runWebCodecs, runWasm]);
 
   const convert = async () => {
     if (!ready || isEncoding) return;
