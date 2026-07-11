@@ -2,30 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 
 import styles from './Selector.module.scss';
-
-export const PLATFORMS = [
-  {
-    id: 'discord', name: 'Discord', sub: 'Free · 10 MB', mb: 10, color: '#5865F2',
-  },
-  {
-    id: 'nitro', name: 'Discord', sub: 'Nitro · 500 MB', mb: 500, color: '#5865F2',
-  },
-  {
-    id: 'whatsapp', name: 'WhatsApp', sub: '16 MB', mb: 16, color: '#25D366',
-  },
-  {
-    id: 'gmail', name: 'Email', sub: 'Gmail · 25 MB', mb: 25, color: '#EA4335',
-  },
-  {
-    id: 'reddit', name: 'Reddit', sub: '1 GB', mb: 1024, color: '#FF4500',
-  },
-  {
-    id: 'slack', name: 'Slack', sub: '1 GB', mb: 1024, color: '#36C5F0',
-  },
-  {
-    id: 'telegram', name: 'Telegram', sub: '2 GB', mb: 2048, color: '#229ED9',
-  },
-];
+import { PLATFORMS } from '../../utils/presets';
 
 function Selector({
   platform, targetMB, onSelect, onCustom,

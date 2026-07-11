@@ -23,6 +23,11 @@
   gap: 12px;
 }
 
+.arrow {
+  display: inline-flex;
+  color: $green;
+}
+
 .sizeLabel {
   font-size: 11px;
   color: $muted;

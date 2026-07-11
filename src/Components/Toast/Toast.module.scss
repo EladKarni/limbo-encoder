@@ -32,6 +32,16 @@
   border-color: #f4644a;
 }
 
+.iconOk {
+  display: inline-flex;
+  color: $green;
+}
+
+.iconError {
+  display: inline-flex;
+  color: $red;
+}
+
 .text {
   font-size: 13.5px;
   font-weight: 600;

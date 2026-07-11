@@ -10,8 +10,16 @@ function Toast({ message, tone }) {
       {message && (
         <div className={tone === 'error' ? styles.toastError : styles.toast}>
           {tone === 'error'
-            ? <CloseIcon size={17} color="#f4644a" strokeWidth={2.4} />
-            : <CheckIcon color="#4ee894" />}
+            ? (
+              <span className={styles.iconError}>
+                <CloseIcon size={17} strokeWidth={2.4} />
+              </span>
+            )
+            : (
+              <span className={styles.iconOk}>
+                <CheckIcon />
+              </span>
+            )}
           <span className={styles.text}>{message}</span>
         </div>
       )}

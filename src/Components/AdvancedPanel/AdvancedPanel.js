@@ -21,7 +21,7 @@ function Row({
           {options.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
         <span className={styles.selectChevron}>
-          <ChevronIcon size={15} color="#5b6472" />
+          <ChevronIcon size={15} />
         </span>
       </div>
     </div>
@@ -42,11 +42,13 @@ function AdvancedPanel({
     <div className={styles.card}>
       <button type="button" className={styles.toggle} onClick={onToggle} aria-expanded={open}>
         <span className={styles.toggleLabel}>
-          <GearIcon color="#8b95a5" />
+          <span className={styles.toggleIcon}>
+            <GearIcon />
+          </span>
           Advanced settings
         </span>
         <span className={open ? styles.chevronOpen : styles.chevron}>
-          <ChevronIcon color="#8b95a5" />
+          <ChevronIcon />
         </span>
       </button>
       {open && (

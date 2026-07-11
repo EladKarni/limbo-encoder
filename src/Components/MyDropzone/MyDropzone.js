@@ -5,10 +5,7 @@ import PropTypes from 'prop-types';
 import styles from './MyDropzone.module.scss';
 import { UploadIcon, PlusIcon } from '../Icons/Icons';
 import { MAX_INPUT_BYTES } from '../../utils/codecs';
-
-// MKV/AVI often report an empty or generic MIME type, so extensions are
-// listed alongside video/* to keep this in step with App.addFiles.
-export const ACCEPT_VIDEO = 'video/*,.mp4,.mov,.webm,.mkv,.avi';
+import { ACCEPT_VIDEO } from '../../utils/presets';
 
 function MyDropzone({ onFiles }) {
   const onDrop = useCallback((acceptedFiles) => {
@@ -26,14 +23,14 @@ function MyDropzone({ onFiles }) {
     >
       <input {...getInputProps()} />
       <div className={styles.icon}>
-        <UploadIcon color="#4ee894" />
+        <UploadIcon />
       </div>
       <div className={styles.headline}>Drop a video to begin</div>
       <div className={styles.sub}>
         Drag &amp; drop, or click to browse. MP4, MOV, WebM, MKV &mdash; batch is supported.
       </div>
       <div className={styles.cta}>
-        <PlusIcon color="#08130d" />
+        <PlusIcon />
         Choose video
       </div>
       <div className={styles.limit}>

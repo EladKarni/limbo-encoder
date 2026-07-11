@@ -8,8 +8,7 @@ import Stage from './Components/Stage/Stage';
 import Sidebar from './Components/Sidebar/Sidebar';
 import Toast from './Components/Toast/Toast';
 import KofiWidget from './Components/KofiWidget/KofiWidget';
-import { ACCEPT_VIDEO } from './Components/MyDropzone/MyDropzone';
-import { PLATFORMS } from './Components/Selector/Selector';
+import { ACCEPT_VIDEO, PLATFORMS, isAcceptedVideo } from './utils/presets';
 import { CODECS, CODEC_OPTIONS, MAX_INPUT_BYTES } from './utils/codecs';
 import {
   effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
@@ -196,9 +195,7 @@ function App() {
   }, [updateFile, showToast]);
 
   const addFiles = useCallback((list) => {
-    const videos = [...list].filter(
-      (f) => f.type.startsWith('video') || /\.(mp4|mov|webm|mkv|avi)$/i.test(f.name),
-    );
+    const videos = [...list].filter(isAcceptedVideo);
     const oversized = videos.find((f) => f.size > MAX_INPUT_BYTES);
     if (oversized) {
       showToast(oversizedMsg(oversized.name), 'error');

@@ -5,6 +5,7 @@
 // in index.html (their dists use syntax webpack 4 cannot parse).
 
 import { CODECS } from './codecs';
+import { isFastPathContainer } from './presets';
 import {
   chooseHeight, budgetKbps, correctBitrate, TOLERANCE, ATTEMPTS, MIN_VIDEO_KBPS,
 } from './fit';
@@ -28,7 +29,7 @@ export function webCodecsAvailable() {
 // everything else runs on the wasm engine.
 export function plannedPath(f) {
   const codec = CODECS[f.codec] || CODECS['H.264'];
-  if (codec.ext === 'mp4' && /\.(mp4|mov)$/i.test(f.name) && webCodecsAvailable()) {
+  if (codec.ext === 'mp4' && isFastPathContainer(f.name) && webCodecsAvailable()) {
     return 'webcodecs';
   }
   return 'wasm';

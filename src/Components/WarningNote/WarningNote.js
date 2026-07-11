@@ -11,7 +11,7 @@ function WarningNote({ children }) {
   return (
     <div className={styles.note} role="alert">
       <span className={styles.icon}>
-        <AlertIcon color="#f4c04a" />
+        <AlertIcon />
       </span>
       <span>{children}</span>
     </div>

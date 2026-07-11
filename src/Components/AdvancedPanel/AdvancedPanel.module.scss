@@ -28,8 +28,14 @@
   font-weight: 600;
 }
 
+.toggleIcon {
+  display: inline-flex;
+  color: $muted;
+}
+
 .chevron {
   display: flex;
+  color: $muted;
   transition: transform 0.2s ease;
 }
 
@@ -83,6 +89,7 @@
   transform: translateY(-50%);
   pointer-events: none;
   display: flex;
+  color: $dim;
 }
 
 .hint {

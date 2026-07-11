@@ -8,13 +8,13 @@ function ErrorCard({ name, log, onRetry }) {
   return (
     <div className={styles.card}>
       <div className={styles.badge}>
-        <CloseIcon size={15} color="#f4644a" strokeWidth={2.6} />
+        <CloseIcon size={15} strokeWidth={2.6} />
         Encoding failed
       </div>
       <div className={styles.name}>{name}</div>
       <pre className={styles.log}>{log || 'No encoder output was captured.'}</pre>
       <button type="button" className={styles.retry} onClick={onRetry}>
-        <RedoIcon color="#e9edf3" />
+        <RedoIcon />
         Try again
       </button>
     </div>

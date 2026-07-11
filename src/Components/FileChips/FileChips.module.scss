@@ -92,6 +92,11 @@
   }
 }
 
+.addIcon {
+  display: inline-flex;
+  color: $green;
+}
+
 .add {
   flex-shrink: 0;
   display: flex;

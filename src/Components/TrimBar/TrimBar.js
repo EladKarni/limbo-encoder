@@ -37,7 +37,9 @@ function TrimBar({
     <div className={styles.card}>
       <div className={styles.head}>
         <div className={styles.title}>
-          <ScissorsIcon color="#4ee894" />
+          <span className={styles.titleIcon}>
+            <ScissorsIcon />
+          </span>
           <span>Trim clip</span>
         </div>
         <span className={styles.selected}>{`${fmtTime(end - trimStart)} selected`}</span>

@@ -15,21 +15,21 @@ function DoneCard({
       <div className={styles.frame}>
         <video key={url} muted controls playsInline src={url} className={styles.video} />
         <div className={styles.badge}>
-          <CheckIcon size={14} color="#08130d" strokeWidth={3} />
+          <CheckIcon size={14} strokeWidth={3} />
           {`DONE · ${fmtBytes(outBytes)}`}
         </div>
       </div>
       <div className={styles.actions}>
         <button type="button" className={styles.download} onClick={onDownload}>
-          <DownloadIcon color="#08130d" />
+          <DownloadIcon />
           Download
         </button>
         <button type="button" className={styles.share} onClick={onShare}>
-          <ShareIcon color="#e9edf3" />
+          <ShareIcon />
           Share
         </button>
         <button type="button" className={styles.redo} onClick={onRedo}>
-          <RedoIcon color="#8b95a5" />
+          <RedoIcon />
           Redo
         </button>
       </div>
@@ -39,7 +39,9 @@ function DoneCard({
         target="_blank"
         rel="noopener noreferrer"
       >
-        <CoffeeIcon color="#f4c04a" />
+        <span className={styles.kofiIcon}>
+          <CoffeeIcon />
+        </span>
         <span>
           Saved you an upload?
           {' '}

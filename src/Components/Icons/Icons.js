@@ -2,17 +2,20 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 function base(paths, defaults = {}) {
-  function Icon({ size, color, strokeWidth }) {
+  // Icons stroke with currentColor and are aria-hidden; callers set the color
+  // via CSS on the icon's context (a button/badge/text color), never a JS hex.
+  function Icon({ size, strokeWidth }) {
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
         fill="none"
-        stroke={color}
+        stroke="currentColor"
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
+        aria-hidden="true"
       >
         {paths}
       </svg>
@@ -20,12 +23,10 @@ function base(paths, defaults = {}) {
   }
   Icon.propTypes = {
     size: PropTypes.number,
-    color: PropTypes.string,
     strokeWidth: PropTypes.number,
   };
   Icon.defaultProps = {
     size: defaults.size || 16,
-    color: defaults.color || 'currentColor',
     strokeWidth: defaults.strokeWidth || 2,
   };
   return Icon;

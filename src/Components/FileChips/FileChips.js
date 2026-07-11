@@ -50,7 +50,9 @@ function FileChips({
         </div>
       ))}
       <button type="button" className={styles.add} onClick={onAdd}>
-        <PlusIcon size={15} color="#4ee894" />
+        <span className={styles.addIcon}>
+          <PlusIcon size={15} />
+        </span>
         Add
       </button>
     </div>

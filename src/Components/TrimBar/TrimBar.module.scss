@@ -24,6 +24,11 @@
   color: $text;
 }
 
+.titleIcon {
+  display: inline-flex;
+  color: $green;
+}
+
 .selected {
   font-size: 12.5px;
   font-family: $mono;
