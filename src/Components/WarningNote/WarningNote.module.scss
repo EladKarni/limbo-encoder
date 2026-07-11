@@ -1,16 +1,16 @@
 @import '../../styles/variables';
+@import '../../styles/mixins';
 
 .note {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   padding: 12px 16px;
-  background: rgba(244, 192, 74, 0.1);
-  border: 1px solid rgba(244, 192, 74, 0.45);
   border-radius: 12px;
-  color: $amber;
   font-size: 13.5px;
   line-height: 1.5;
+
+  @include tinted-alert($amber);
 }
 
 .icon {

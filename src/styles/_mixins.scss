@@ -1,0 +1,33 @@
+@import 'variables';
+
+// Shared rise-in animation used by the transient toast and the result/error
+// cards. SCSS-module @keyframes are file-scoped, so each consumer that wants
+// it includes rise-in() (which emits its own local @keyframes) rather than
+// duplicating the declaration by hand.
+@mixin rise-in($duration: 0.4s, $delay: 0s) {
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  animation: rise $duration ease $delay both;
+}
+
+// The standard sidebar/stage panel: dark surface, hairline border, 16px
+// radius. Consumers that need a different padding or an inset override it after
+// the include.
+@mixin panel-card {
+  background: $panel;
+  border: 1px solid $border;
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+// A tinted alert card: a translucent wash of $tint with a matching border and
+// text, shared by the persistent WarningNote (amber) and the ErrorCard badge
+// (red). Inverted live-region semantics are handled in JS (both are polite).
+@mixin tinted-alert($tint) {
+  background: rgba($tint, 0.1);
+  border: 1px solid rgba($tint, 0.45);
+  color: $tint;
+}

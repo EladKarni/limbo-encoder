@@ -1,9 +1,5 @@
 @import '../../styles/variables';
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@import '../../styles/mixins';
 
 .region {
   position: fixed;
@@ -23,13 +19,14 @@
   border: 1px solid $green;
   border-radius: 13px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
-  animation: rise 0.3s ease both;
   white-space: nowrap;
+
+  @include rise-in(0.3s);
 }
 
 .toastError {
   composes: toast;
-  border-color: #f4644a;
+  border-color: $red;
 }
 
 .iconOk {

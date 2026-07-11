@@ -1,10 +1,8 @@
 @import '../../styles/variables';
+@import '../../styles/mixins';
 
 .card {
-  background: $panel;
-  border: 1px solid $border;
-  border-radius: 16px;
-  padding: 18px 20px;
+  @include panel-card;
 }
 
 .head {

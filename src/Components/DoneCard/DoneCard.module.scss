@@ -1,12 +1,8 @@
 @import '../../styles/variables';
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@import '../../styles/mixins';
 
 .wrap {
-  animation: rise 0.4s ease both;
+  @include rise-in;
 }
 
 .frame {

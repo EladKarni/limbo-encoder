@@ -1,21 +1,16 @@
 @import '../../styles/variables';
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-$red: #f4644a;
+@import '../../styles/mixins';
 
 .card {
   border-radius: 18px;
-  border: 1px solid rgba(244, 100, 74, 0.55);
+  border: 1px solid rgba($red, 0.55);
   background: $panel;
   padding: 26px 28px;
   display: flex;
   flex-direction: column;
   min-height: 320px;
-  animation: rise 0.4s ease both;
+
+  @include rise-in;
 }
 
 .badge {
@@ -24,8 +19,8 @@ $red: #f4644a;
   gap: 8px;
   align-self: flex-start;
   padding: 6px 12px;
-  background: rgba(244, 100, 74, 0.12);
-  border: 1px solid rgba(244, 100, 74, 0.55);
+  background: rgba($red, 0.12);
+  border: 1px solid rgba($red, 0.55);
   color: $red;
   border-radius: 9px;
   font-size: 12px;
