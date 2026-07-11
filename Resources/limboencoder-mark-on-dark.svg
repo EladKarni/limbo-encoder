@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="1024" height="1024" role="img" aria-label="LimboEncoder mark for dark backgrounds">
+  <g opacity="0.3">
+    <rect x="54" y="34" width="132" height="78" rx="16" fill="#4EE894"></rect>
+    <g fill="#4EE894">
+      <rect x="64" y="42" width="11" height="11" rx="3"></rect>
+      <rect x="92" y="42" width="11" height="11" rx="3"></rect>
+      <rect x="120" y="42" width="11" height="11" rx="3"></rect>
+      <rect x="148" y="42" width="11" height="11" rx="3"></rect>
+      <rect x="176" y="42" width="11" height="11" rx="3"></rect>
+    </g>
+    <path d="M 111 66 L 111 90 L 135 78 Z" fill="#4EE894"></path>
+  </g>
+  <rect x="38" y="122" width="164" height="13" rx="6.5" fill="#4EE894"></rect>
+  <g transform="translate(120 170) rotate(-18)">
+    <rect x="-40" y="-26" width="80" height="52" rx="13" fill="#4EE894"></rect>
+    <g fill="#0A2E20">
+      <rect x="-30" y="-19" width="7" height="7" rx="2"></rect>
+      <rect x="-6" y="-19" width="7" height="7" rx="2"></rect>
+      <rect x="18" y="-19" width="7" height="7" rx="2"></rect>
+    </g>
+    <path d="M -9 -8 L -9 14 L 13 3 Z" fill="#0A2E20"></path>
+  </g>
+</svg>

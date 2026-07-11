@@ -15,7 +15,7 @@ import EstimateCard from './Components/EstimateCard/EstimateCard';
 import AdvancedPanel from './Components/AdvancedPanel/AdvancedPanel';
 import Button from './Components/Button/Button';
 import Toast from './Components/Toast/Toast';
-import { ClapperIcon } from './Components/Icons/Icons';
+import { LogoMark } from './Components/Icons/Icons';
 import WarningNote from './Components/WarningNote/WarningNote';
 import {
   CODECS, CODEC_OPTIONS, effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
@@ -529,7 +529,7 @@ function App() {
         <header className={styles.header}>
           <div className={styles.brand}>
             <div className={styles.logo}>
-              <ClapperIcon color="#06120c" />
+              <LogoMark size={36} />
             </div>
             <div>
               <div className={styles.title}>

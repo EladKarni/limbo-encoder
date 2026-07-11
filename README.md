@@ -11,7 +11,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/EladKarni/limbo-encoder">
-    <img src="https://github.com/EladKarni/limbo-encoder/blob/master/Resources/logo512.png" alt="Logo" width="80" height="80">
+    <img src="Resources/limboencoder-icon.svg" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Limbo Encoder</h3>

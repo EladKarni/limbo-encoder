@@ -31,16 +31,42 @@ function base(paths, defaults = {}) {
   return Icon;
 }
 
-export const ClapperIcon = base(
-  <>
-    <path d="M4 8V6a2 2 0 0 1 2-2h2" />
-    <path d="M4 16v2a2 2 0 0 0 2 2h2" />
-    <path d="M16 4h2a2 2 0 0 1 2 2v2" />
-    <path d="M16 20h2a2 2 0 0 0 2-2v-2" />
-    <path d="m10 9 5 3-5 3z" />
-  </>,
-  { size: 24, strokeWidth: 2.4 },
-);
+// Brand mark (film frame pressed through a slot), fill-based rather than
+// stroke-based like the icons below. Same geometry as Resources/
+// limboencoder-icon.svg minus the gradient tile, which the header supplies.
+export function LogoMark({ size }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 240 240" aria-hidden="true">
+      <g opacity="0.5">
+        <rect x="54" y="34" width="132" height="78" rx="16" fill="#0B3D28" />
+        <g fill="#0F935B">
+          <rect x="64" y="42" width="11" height="11" rx="3" />
+          <rect x="92" y="42" width="11" height="11" rx="3" />
+          <rect x="120" y="42" width="11" height="11" rx="3" />
+          <rect x="148" y="42" width="11" height="11" rx="3" />
+          <rect x="176" y="42" width="11" height="11" rx="3" />
+        </g>
+        <path d="M 111 66 L 111 90 L 135 78 Z" fill="#0F935B" />
+      </g>
+      <rect x="38" y="122" width="164" height="13" rx="6.5" fill="#08130D" />
+      <g transform="translate(120 170) rotate(-18)">
+        <rect x="-40" y="-26" width="80" height="52" rx="13" fill="#08130D" />
+        <g fill="#4EE894">
+          <rect x="-30" y="-19" width="7" height="7" rx="2" />
+          <rect x="-6" y="-19" width="7" height="7" rx="2" />
+          <rect x="18" y="-19" width="7" height="7" rx="2" />
+        </g>
+        <path d="M -9 -8 L -9 14 L 13 3 Z" fill="#4EE894" />
+      </g>
+    </svg>
+  );
+}
+LogoMark.propTypes = {
+  size: PropTypes.number,
+};
+LogoMark.defaultProps = {
+  size: 36,
+};
 
 export const UploadIcon = base(
   <>
