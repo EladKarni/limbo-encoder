@@ -2,6 +2,14 @@
 // single source of truth for which files the app accepts and which take the
 // WebCodecs fast path. Three consumers used to each hardcode their own list
 // (the dropzone accept string, App.addFiles, plannedPath) and could drift.
+import { MAX_INPUT_BYTES } from './codecs';
+
+// Copy for files whose input size is over the app's cap. The cap is 4 GiB
+// (binary), but the label is deliberately the round decimal "4 GB": dividing
+// by 1e9 and flooring turns 4·1024^3 (≈4.29e9) back into 4 for the user.
+export const oversizedMsg = (name) => (
+  `${name} is over ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB — trim it into parts first`
+);
 
 export const PLATFORMS = [
   {

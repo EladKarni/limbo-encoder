@@ -16,10 +16,7 @@ import useToast from './hooks/useToast';
 import useFiles from './hooks/useFiles';
 import useEngine from './hooks/useEngine';
 import useEncoder from './hooks/useEncoder';
-
-function baseName(name) {
-  return name.replace(/\.[^.]+$/, '');
-}
+import useFileActions from './hooks/useFileActions';
 
 // The composition root: wires the state hooks (toast, files, engine, encoder)
 // to the three presentational panels. All app state lives in these hooks under
@@ -30,7 +27,7 @@ function App() {
     files, filesRef, activeId, setActiveId, updateFile, addFiles, removeFile,
   } = useFiles(showToast);
   const { engine, setEngine, setLogHandler } = useEngine(showToast);
-  const { encodeOne, overCeilingMsg } = useEncoder({
+  const { convert: runConvert, overCeilingMsg } = useEncoder({
     filesRef, updateFile, setActiveId, showToast, setEngine, setLogHandler,
   });
 
@@ -41,66 +38,11 @@ function App() {
   const active = files.find((f) => f.id === activeId) || files[0] || null;
   const isEncoding = files.some((f) => f.status === 'encoding');
   const readyCount = files.filter((f) => f.status === 'ready').length;
+  const { download, share, redo } = useFileActions(active, showToast, updateFile);
 
-  const convert = async () => {
+  const convert = () => {
     if (!ready || isEncoding) return;
-    const batch = files.length > 1;
-    const ids = batch
-      ? files.filter((f) => f.status === 'ready').map((f) => f.id)
-      : files.filter((f) => active && f.id === active.id && f.status === 'ready').map((f) => f.id);
-    if (!ids.length) return;
-    const succeeded = await ids.reduce(async (prev, id) => {
-      const count = await prev;
-      const ok = await encodeOne(id);
-      return count + (ok ? 1 : 0);
-    }, Promise.resolve(0));
-    if (ids.length > 1) {
-      if (succeeded === ids.length) showToast(`Encoded ${succeeded} videos`);
-      else showToast(`Encoded ${succeeded} of ${ids.length} videos — the rest were skipped`, 'error');
-    }
-  };
-
-  const download = () => {
-    if (!active || !active.outUrl) return;
-    const link = document.createElement('a');
-    link.href = active.outUrl;
-    link.download = `${baseName(active.name)}_limbo.${active.outExt || 'mp4'}`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    showToast('Download started');
-  };
-
-  const share = async () => {
-    if (!active || !active.outBlob) return;
-    const shareFile = new File(
-      [active.outBlob],
-      `${baseName(active.name)}_limbo.${active.outExt || 'mp4'}`,
-      { type: active.outMime || 'video/mp4' },
-    );
-    if (!(navigator.canShare && navigator.canShare({ files: [shareFile] }))) {
-      showToast('Sharing files is not supported in this browser');
-      return;
-    }
-    try {
-      await navigator.share({ files: [shareFile] });
-    } catch (err) {
-      if (err.name !== 'AbortError') showToast('Sharing failed', 'error');
-    }
-  };
-
-  const redo = () => {
-    if (!active) return;
-    if (active.outUrl) URL.revokeObjectURL(active.outUrl);
-    updateFile(active.id, {
-      status: 'ready',
-      progress: 0,
-      outUrl: null,
-      outBlob: null,
-      outBytes: null,
-      outMime: null,
-      outExt: null,
-    });
+    runConvert(files, active);
   };
 
   const openPicker = () => {

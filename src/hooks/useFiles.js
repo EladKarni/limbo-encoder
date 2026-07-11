@@ -2,7 +2,7 @@ import {
   useState, useRef, useEffect, useCallback,
 } from 'react';
 import { CODEC_OPTIONS, MAX_INPUT_BYTES } from '../utils/codecs';
-import { PLATFORMS, isAcceptedVideo } from '../utils/presets';
+import { PLATFORMS, isAcceptedVideo, oversizedMsg } from '../utils/presets';
 
 let uid = 0;
 function genId() {
@@ -10,12 +10,34 @@ function genId() {
   return `f${uid}`;
 }
 
-// Copy for files whose input size is over the app's cap. The cap is 4 GiB
-// (binary), but the label is deliberately the round decimal "4 GB": dividing
-// by 1e9 and flooring turns 4·1024^3 (≈4.29e9) back into 4 for the user.
-export const oversizedMsg = (name) => (
-  `${name} is over ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB — trim it into parts first`
-);
+// A fresh per-file state record for a dropped/picked File, defaulted to the
+// first platform preset and 'ready'. Duration/size probing fills the geometry
+// in later (loadMeta).
+function makeFileRecord(file) {
+  const [platform] = PLATFORMS;
+  return {
+    id: genId(),
+    file,
+    name: file.name,
+    size: file.size,
+    url: URL.createObjectURL(file),
+    duration: 0,
+    trimStart: 0,
+    trimEnd: 0,
+    targetMB: platform.mb,
+    platform: platform.id,
+    res: 'Original',
+    codec: CODEC_OPTIONS[0],
+    fps: 'Original',
+    status: 'ready',
+    progress: 0,
+    outUrl: null,
+    outBlob: null,
+    outBytes: null,
+    outMime: null,
+    outExt: null,
+  };
+}
 
 // The per-file state list and everything that mutates it: add (with input
 // validation + metadata probing), update, remove (with object-URL cleanup),
@@ -60,29 +82,7 @@ export default function useFiles(showToast) {
     }
     const accepted = videos.filter((f) => f.size <= MAX_INPUT_BYTES);
     if (!accepted.length) return;
-    const defaultPlatform = PLATFORMS[0];
-    const created = accepted.map((f) => ({
-      id: genId(),
-      file: f,
-      name: f.name,
-      size: f.size,
-      url: URL.createObjectURL(f),
-      duration: 0,
-      trimStart: 0,
-      trimEnd: 0,
-      targetMB: defaultPlatform.mb,
-      platform: defaultPlatform.id,
-      res: 'Original',
-      codec: CODEC_OPTIONS[0],
-      fps: 'Original',
-      status: 'ready',
-      progress: 0,
-      outUrl: null,
-      outBlob: null,
-      outBytes: null,
-      outMime: null,
-      outExt: null,
-    }));
+    const created = accepted.map(makeFileRecord);
     setFiles((fs) => [...fs, ...created]);
     setActiveId((prev) => prev || created[0].id);
     created.forEach((f) => loadMeta(f.id, f.url, f.name));
