@@ -25,8 +25,9 @@
   },
   "scripts": {
     "copy:ffmpeg": "node scripts/copy-ffmpeg-assets.js",
-    "prestart": "yarn copy:ffmpeg",
-    "prebuild": "yarn copy:ffmpeg",
+    "check:runtime-refs": "node scripts/assert-runtime-refs.js",
+    "prestart": "yarn copy:ffmpeg && yarn check:runtime-refs",
+    "prebuild": "yarn copy:ffmpeg && yarn check:runtime-refs",
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
     "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "test": "NODE_OPTIONS=--openssl-legacy-provider react-scripts test",

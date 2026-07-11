@@ -21,14 +21,19 @@
 // documented in docs/ARCHITECTURE.md (the old /ffmpeg/<version>/ dir is gone
 // from the server after a deploy, so the cache is the only copy).
 
-const FFMPEG_CACHE = 'ffmpeg-__FFMPEG_VERSION__';
+// The runtime is split into two independently-versioned segments (the wasm
+// core, and the demux/mux libs) so bumping the small libs doesn't invalidate
+// the 32 MB core cache — see scripts/runtime-manifest.js. Each segment gets
+// its own Cache Storage bucket, named after its /ffmpeg/<segment>/ path.
+const FFMPEG_CACHES = ['ffmpeg-__FFMPEG_CORE__', 'ffmpeg-__FFMPEG_DEMUX__'];
 const APP_CACHE = 'app-shell-v1';
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    const keep = new Set([...FFMPEG_CACHES, APP_CACHE]);
     const names = await caches.keys();
     await Promise.all(names
-      .filter((name) => name !== FFMPEG_CACHE && name !== APP_CACHE)
+      .filter((name) => !keep.has(name))
       .map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
@@ -41,7 +46,7 @@ self.addEventListener('activate', (event) => {
 // next activate cleanup.
 function runtimeCacheName(pathname) {
   const m = /^\/ffmpeg\/([^/]+)\//.exec(pathname);
-  return m ? `ffmpeg-${m[1]}` : FFMPEG_CACHE;
+  return m ? `ffmpeg-${m[1]}` : FFMPEG_CACHES[0];
 }
 
 // Caching is best-effort on both paths below: cache.put() can reject (most

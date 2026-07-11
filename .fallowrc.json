@@ -4,6 +4,7 @@
     "src/index.js",
     "src/setupProxy.js",
     "scripts/copy-ffmpeg-assets.js",
+    "scripts/assert-runtime-refs.js",
     "scripts/sw.template.js"
   ],
   "ignorePatterns": [

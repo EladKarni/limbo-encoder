@@ -39,9 +39,9 @@
       ffmpeg.wasm UMD runtime, served same-origin (see scripts/copy-ffmpeg-assets.js).
       Must load before the app bundle, which reads window.FFmpegWASM.
     -->
-    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_VERSION%/ffmpeg.js"></script>
-    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_VERSION%/mp4box.all.min.js"></script>
-    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_VERSION%/mp4-muxer.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_CORE%/ffmpeg.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_DEMUX%/mp4box.all.min.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_DEMUX%/mp4-muxer.js"></script>
     <!--
       Ko-fi donation widget. crossorigin makes it a CORS request (the CDN
       sends ACAO: *), which is what lets it through the COEP isolation

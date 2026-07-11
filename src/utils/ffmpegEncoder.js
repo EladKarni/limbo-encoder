@@ -21,9 +21,11 @@ const ffmpeg = FFmpeg ? new FFmpeg() : null;
 // otherwise.
 export const hasFfmpeg = Boolean(ffmpeg);
 
-// The version segment comes from scripts/copy-ffmpeg-assets.js via .env.local;
-// versioned paths let the assets be cached as immutable.
-const FFMPEG_BASE = `${process.env.PUBLIC_URL || ''}/ffmpeg/${process.env.REACT_APP_FFMPEG_VERSION}`;
+// The core segment comes from scripts/copy-ffmpeg-assets.js via .env.local
+// (see scripts/runtime-manifest.js); versioned paths let the assets be cached
+// as immutable. The wasm core lives under the core segment; mp4box/mp4-muxer
+// load from the demux segment as script-tag globals in index.html.
+const FFMPEG_BASE = `${process.env.PUBLIC_URL || ''}/ffmpeg/${process.env.REACT_APP_FFMPEG_CORE}`;
 
 // Input files are mounted here via WORKERFS: ffmpeg reads straight from the
 // File object on demand, so the input never has to fit in wasm memory.
