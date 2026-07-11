@@ -198,14 +198,6 @@
   }
 }
 
-// Container the official Ko-fi widget renders into; collapse entirely when
-// the widget didn't load so the footer gap doesn't double up.
-.kofi {
-  &:empty {
-    display: none;
-  }
-}
-
 .hiddenInput {
   display: none;
 }
