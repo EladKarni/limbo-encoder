@@ -5,9 +5,10 @@
   "dependencies": {
     "@ffmpeg/core-mt": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/space-grotesk": "^5.2.10",
+    "mp4-muxer": "^5.2.2",
+    "mp4box": "0.5.4",
     "prop-types": "^15.7.2",
     "react": "17.0.0",
     "react-dom": "17.0.0",
@@ -16,6 +17,9 @@
     "sass": "^1.49.9"
   },
   "scripts": {
+    "copy:ffmpeg": "node scripts/copy-ffmpeg-assets.js",
+    "prestart": "yarn copy:ffmpeg",
+    "prebuild": "yarn copy:ffmpeg",
     "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
     "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "test": "NODE_OPTIONS=--openssl-legacy-provider react-scripts test",

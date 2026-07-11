@@ -21,3 +21,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ffmpeg.wasm runtime copied from node_modules by scripts/copy-ffmpeg-assets.js
+/public/ffmpeg

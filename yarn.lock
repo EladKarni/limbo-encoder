@@ -1251,11 +1251,6 @@
   resolved "https://registry.yarnpkg.com/@ffmpeg/types/-/types-0.12.4.tgz#aecd9b1a035882ee0bdf8853af37271a3b447473"
   integrity sha512-k9vJQNBGTxE5AhYDtOYR5rO5fKsspbg51gbcwtbkw2lCdoIILzklulcjJfIDwrtn7XhDeF2M+THwJ2FGrLeV6A==
 
-"@ffmpeg/util@^0.12.2":
-  version "0.12.2"
-  resolved "https://registry.yarnpkg.com/@ffmpeg/util/-/util-0.12.2.tgz#6bab9d8022a5bed9a6ff0933e5235b9b38698599"
-  integrity sha512-ouyoW+4JB7WxjeZ2y6KpRvB+dLp7Cp4ro8z0HIVpZVCM7AwFlHa0c4R8Y/a4M3wMqATpYKhC7lSFHQ0T11MEDw==
-
 "@fontsource/jetbrains-mono@^5.2.8":
   version "5.2.8"
   resolved "https://registry.yarnpkg.com/@fontsource/jetbrains-mono/-/jetbrains-mono-5.2.8.tgz#56a1bbb8a36a47fe480d3e90b30b520c89853aa5"
@@ -1731,6 +1726,11 @@
   dependencies:
     "@babel/types" "^7.3.0"
 
+"@types/dom-webcodecs@^0.1.6":
+  version "0.1.18"
+  resolved "https://registry.yarnpkg.com/@types/dom-webcodecs/-/dom-webcodecs-0.1.18.tgz#0a4a26ffef72e584976ca8bdaefc3119b533a5c4"
+  integrity sha512-vAvE8C9DGWR+tkb19xyjk1TSUlJ7RUzzp4a9Anu7mwBT+fpyePWK1UxmH14tMO5zHmrnrRIMg5NutnnDztLxgg==
+
 "@types/eslint@^7.2.6":
   version "7.28.0"
   resolved "https://registry.yarnpkg.com/@types/eslint/-/eslint-7.28.0.tgz#7e41f2481d301c68e14f483fe10b017753ce8d5a"
@@ -1872,6 +1872,11 @@
     "@types/webpack-sources" "*"
     anymatch "^3.0.0"
     source-map "^0.6.0"
+
+"@types/wicg-file-system-access@^2020.9.5":
+  version "2020.9.8"
+  resolved "https://registry.yarnpkg.com/@types/wicg-file-system-access/-/wicg-file-system-access-2020.9.8.tgz#a8b739854ccb74b8048ef607d3701e9d506830e7"
+  integrity sha512-ggMz8nOygG7d/stpH40WVaNvBwuyYLnrg5Mbyf6bmsj/8+gb6Ei4ZZ9/4PNpcPNTT8th9Q8sM8wYmWGjMWLX/A==
 
 "@types/yargs-parser@*":
   version "20.2.1"
@@ -7281,6 +7286,19 @@ move-concurrently@^1.0.1:
     mkdirp "^0.5.1"
     rimraf "^2.5.4"
     run-queue "^1.0.3"
+
+mp4-muxer@^5.2.2:
+  version "5.2.2"
+  resolved "https://registry.yarnpkg.com/mp4-muxer/-/mp4-muxer-5.2.2.tgz#40b93b1b727f5f4a9fbda131fe7c5b5013168bf1"
+  integrity sha512-dhozjTywI0h2qFzeShagt8YYw811fh1XlwiDCE2f6Aeqf6xG2CyuShoSa5E0AZDO8pPF0JOZ3wOmWBNWIGdSpQ==
+  dependencies:
+    "@types/dom-webcodecs" "^0.1.6"
+    "@types/wicg-file-system-access" "^2020.9.5"
+
+mp4box@0.5.4:
+  version "0.5.4"
+  resolved "https://registry.yarnpkg.com/mp4box/-/mp4box-0.5.4.tgz#f09d85482e9215927e6a617e4894c742f3f019f7"
+  integrity sha512-GcCH0fySxBurJtvr0dfhz0IxHZjc1RP+F+I8xw+LIwkU1a+7HJx8NCDiww1I5u4Hz6g4eR1JlGADEGJ9r4lSfA==
 
 ms@2.0.0:
   version "2.0.0"

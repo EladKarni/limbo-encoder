@@ -1,7 +1,6 @@
 import React, {
   useState, useEffect, useRef, useCallback,
 } from 'react';
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 import styles from './App.module.scss';
 
 import MyDropzone, { ACCEPT_VIDEO } from './Components/MyDropzone/MyDropzone';
@@ -9,6 +8,7 @@ import VideoPreview from './Components/VideoPreview/VideoPreview';
 import TrimBar from './Components/TrimBar/TrimBar';
 import ProgressBar from './Components/ProgressBar/ProgressBar';
 import DoneCard from './Components/DoneCard/DoneCard';
+import ErrorCard from './Components/ErrorCard/ErrorCard';
 import FileChips from './Components/FileChips/FileChips';
 import Selector, { PLATFORMS } from './Components/Selector/Selector';
 import EstimateCard from './Components/EstimateCard/EstimateCard';
@@ -18,9 +18,20 @@ import Toast from './Components/Toast/Toast';
 import { ClapperIcon } from './Components/Icons/Icons';
 import {
   CODECS, CODEC_OPTIONS, effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
+  MAX_INPUT_BYTES, chooseHeight,
 } from './utils/video';
+import { webCodecsAvailable, transcodeMp4 } from './utils/webcodecs';
 
-const ffmpeg = createFFmpeg({ log: true });
+// The ffmpeg.wasm UMD runtime is loaded via a <script> tag in index.html
+// (webpack 4 cannot parse the library's dist, and self-hosting keeps it
+// same-origin under the COOP/COEP isolation headers).
+const { FFmpeg } = window.FFmpegWASM || {};
+const ffmpeg = FFmpeg ? new FFmpeg() : null;
+const FFMPEG_BASE = `${process.env.PUBLIC_URL || ''}/ffmpeg`;
+
+// Input files are mounted here via WORKERFS: ffmpeg reads straight from the
+// File object on demand, so the input never has to fit in wasm memory.
+const MOUNT_DIR = '/work';
 
 let uid = 0;
 function genId() {
@@ -32,11 +43,11 @@ function baseName(name) {
   return name.replace(/\.[^.]+$/, '');
 }
 
-function safeUnlink(name) {
+async function safeFsOp(op) {
   try {
-    ffmpeg.FS('unlink', name);
+    await op();
   } catch (err) {
-    // File may not exist; nothing to clean up.
+    // Nothing to clean up.
   }
 }
 
@@ -50,9 +61,12 @@ function App() {
 
   const filesRef = useRef(files);
   const encodingIdRef = useRef(null);
-  // ffmpeg.wasm reports progress against the full input duration, so trimmed
-  // encodes need their ratio scaled up to still land on 100%.
-  const progressScaleRef = useRef(1);
+  // Output duration of the encode in flight; progress is parsed out of
+  // ffmpeg's own "time=" log lines against this (the core's progress events
+  // are unreliable — they can report 0 or >1 for real-world files).
+  const encodingDurRef = useRef(0);
+  // Rolling tail of ffmpeg log lines, kept for the error card.
+  const logTailRef = useRef([]);
   const toastTimerRef = useRef(null);
   const pickerRef = useRef(null);
 
@@ -63,49 +77,79 @@ function App() {
   const showToast = useCallback((message, tone = 'ok') => {
     clearTimeout(toastTimerRef.current);
     setToast({ message, tone });
-    toastTimerRef.current = setTimeout(() => setToast(null), 2400);
+    // Errors carry more text and more consequence — leave them up longer.
+    toastTimerRef.current = setTimeout(() => setToast(null), tone === 'error' ? 6000 : 2400);
   }, []);
 
   const updateFile = useCallback((id, patch) => {
     setFiles((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   }, []);
 
+  const loadEngine = useCallback(() => ffmpeg.load({
+    coreURL: `${FFMPEG_BASE}/ffmpeg-core.js`,
+    wasmURL: `${FFMPEG_BASE}/ffmpeg-core.wasm`,
+    workerURL: `${FFMPEG_BASE}/ffmpeg-core.worker.js`,
+  }), []);
+
   useEffect(() => {
-    ffmpeg.load()
+    if (!ffmpeg) {
+      setEngine('error');
+      return undefined;
+    }
+    ffmpeg.on('log', ({ message }) => {
+      // eslint-disable-next-line no-console
+      console.log(message);
+      logTailRef.current.push(message);
+      if (logTailRef.current.length > 30) logTailRef.current.shift();
+      const id = encodingIdRef.current;
+      const dur = encodingDurRef.current;
+      if (!id || !dur) return;
+      const m = /time=(\d+):(\d+):(\d+\.?\d*)/.exec(message);
+      if (!m) return;
+      const secs = (parseInt(m[1], 10) * 3600) + (parseInt(m[2], 10) * 60) + parseFloat(m[3]);
+      updateFile(id, { progress: Math.min(100, Math.max(0, (secs / dur) * 100)) });
+    });
+    loadEngine()
       .then(() => setEngine('ready'))
       .catch((err) => {
         // eslint-disable-next-line no-console
         console.error(err);
         setEngine('error');
-        showToast('Failed to load the encoder engine');
+        showToast('Failed to load the encoder engine', 'error');
       });
-    ffmpeg.setProgress(({ ratio, duration: infoDuration }) => {
-      const id = encodingIdRef.current;
-      // "Duration" log lines re-emit the previous run's ratio — skip them.
-      if (!id || typeof infoDuration === 'number' || !Number.isFinite(ratio)) return;
-      const scaled = ratio * 100 * progressScaleRef.current;
-      updateFile(id, { progress: Math.min(100, Math.max(0, scaled)) });
-    });
     return () => clearTimeout(toastTimerRef.current);
-  }, [showToast, updateFile]);
+  }, [loadEngine, showToast, updateFile]);
 
   const loadMeta = useCallback((id, url, name) => {
     const probe = document.createElement('video');
     probe.preload = 'metadata';
     probe.onloadedmetadata = () => {
       const d = Number.isFinite(probe.duration) ? probe.duration : 0;
-      updateFile(id, { duration: d, trimEnd: d });
+      updateFile(id, {
+        duration: d,
+        trimEnd: d,
+        width: probe.videoWidth || 0,
+        height: probe.videoHeight || 0,
+      });
     };
     probe.onerror = () => {
-      showToast(`${name} could not be read as a video`);
+      showToast(`${name} could not be read as a video`, 'error');
     };
     probe.src = url;
   }, [updateFile, showToast]);
 
   const addFiles = useCallback((list) => {
-    const accepted = [...list].filter(
+    const videos = [...list].filter(
       (f) => f.type.startsWith('video') || /\.(mp4|mov|webm|mkv|avi)$/i.test(f.name),
     );
+    const oversized = videos.find((f) => f.size > MAX_INPUT_BYTES);
+    if (oversized) {
+      showToast(
+        `${oversized.name} is over 4 GB — browsers cap WebAssembly apps at 4 GB of memory. That's a web-platform limit, not ours.`,
+        'error',
+      );
+    }
+    const accepted = videos.filter((f) => f.size <= MAX_INPUT_BYTES);
     if (!accepted.length) return;
     const defaultPlatform = PLATFORMS[0];
     const created = accepted.map((f) => ({
@@ -132,7 +176,7 @@ function App() {
     setFiles((fs) => [...fs, ...created]);
     setActiveId((prev) => prev || created[0].id);
     created.forEach((f) => loadMeta(f.id, f.url, f.name));
-  }, [loadMeta]);
+  }, [loadMeta, showToast]);
 
   const removeFile = useCallback((id) => {
     const f = filesRef.current.find((x) => x.id === id);
@@ -170,55 +214,129 @@ function App() {
       showToast(`Target too small for ${f.name} — trim it or pick a larger limit`, 'error');
       return false;
     }
-    if (f.size > 1.5e9) {
-      showToast(`${f.name} is too large for in-browser encoding (~1.5 GB max)`, 'error');
+    if (f.size > MAX_INPUT_BYTES) {
+      showToast(
+        `${f.name} is over 4 GB — browsers cap WebAssembly apps at 4 GB of memory. That's a web-platform limit, not ours.`,
+        'error',
+      );
       return false;
     }
 
     encodingIdRef.current = id;
-    progressScaleRef.current = f.duration / effDur(f);
+    encodingDurRef.current = effDur(f);
+    logTailRef.current = [];
     setActiveId(id);
     updateFile(id, { status: 'encoding', progress: 0 });
 
     const codec = CODECS[f.codec] || CODECS['H.264'];
-    const inputName = `input-${id}`;
+
+    // Fast path: for mp4/mov sources targeting H.264, transcode with the
+    // browser's own WebCodecs decoders/encoders — hardware speed, and it
+    // handles inputs (AV1, HEVC) the wasm core cannot decode. Any failure
+    // falls through to the wasm encoder below.
+    if (codec.ext === 'mp4' && /\.(mp4|mov)$/i.test(f.name) && webCodecsAvailable()) {
+      try {
+        const blob = await transcodeMp4({
+          file: f.file,
+          targetMB: f.targetMB,
+          trimStart: f.trimStart || 0,
+          trimEnd: f.trimEnd && f.trimEnd < f.duration - 0.05 ? f.trimEnd : 0,
+          resHeight: f.res !== 'Original' ? parseInt(f.res, 10) : 0,
+          fpsOut: f.fps !== 'Original' ? parseInt(f.fps, 10) : 0,
+          onProgress: (p) => updateFile(id, {
+            progress: Math.min(100, Math.max(0, p * 100)),
+          }),
+        });
+        updateFile(id, {
+          status: 'done',
+          progress: 100,
+          outUrl: URL.createObjectURL(blob),
+          outBlob: blob,
+          outBytes: blob.size,
+          outMime: 'video/mp4',
+          outExt: 'mp4',
+        });
+        encodingIdRef.current = null;
+        return true;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('WebCodecs path failed, falling back to ffmpeg:', err);
+        logTailRef.current.push(`WebCodecs: ${err && err.message ? err.message : err}`);
+        updateFile(id, { progress: 0 });
+      }
+    }
+
     const outputName = `output-${id}.${codec.ext}`;
+    let failed = false;
 
     try {
-      ffmpeg.FS('writeFile', inputName, await fetchFile(f.file));
+      await ffmpeg.createDir(MOUNT_DIR);
+      const mounted = await ffmpeg.mount('WORKERFS', { files: [f.file] }, MOUNT_DIR);
+      if (!mounted) throw new Error('Could not mount the input file');
+      const inputPath = `${MOUNT_DIR}/${f.file.name}`;
 
       const dur = effDur(f);
-      const bitrate = bitrateKbps(f);
       const trimmed = f.trimStart > 0.05 || (f.trimEnd > 0 && f.trimEnd < f.duration - 0.05);
 
-      const args = [];
-      if (trimmed && f.trimStart > 0) args.push('-ss', `${f.trimStart}`);
-      args.push('-i', inputName);
-      if (trimmed) args.push('-t', `${dur}`);
-      // Always scale to even dimensions — yuv420p encoders reject odd sizes.
-      if (f.res !== 'Original') {
-        const h = parseInt(f.res, 10);
-        args.push('-vf', `scale=-2:min(${h}\\,trunc(ih/2)*2)`);
-      } else {
-        args.push('-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2');
+      // The wasm core pre-spawns a fixed pool of 32 pthread workers, and no
+      // more can start while exec blocks its worker. Auto threading (decoder
+      // ~cores + x264 ~1.5x cores) overflows the pool on many-core machines
+      // and deadlocks, so cap both decode and encode thread counts.
+      const threads = `${Math.min(8, Math.max(2, Math.floor((navigator.hardwareConcurrency || 4) / 2)))}`;
+
+      const srcW = f.width || 1920;
+      const srcH = f.height || 1080;
+      const fpsForBudget = f.fps !== 'Original' ? parseInt(f.fps, 10) : 30;
+      const userMaxH = f.res !== 'Original' ? parseInt(f.res, 10) : srcH;
+      const targetBytes = f.targetMB * 1e6;
+
+      // Encoders overshoot rather than honor bitrates below their quantizer
+      // ceiling, so pick an affordable resolution up front, verify the
+      // result size, and retry with a measured correction if it misses.
+      let bitrate = bitrateKbps(f);
+      let data = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const height = chooseHeight(bitrate, srcW, srcH, fpsForBudget, userMaxH);
+
+        const args = ['-threads', threads];
+        if (trimmed && f.trimStart > 0) args.push('-ss', `${f.trimStart}`);
+        args.push('-i', inputPath);
+        if (trimmed) args.push('-t', `${dur}`);
+        // Always scale to even dimensions — yuv420p encoders reject odd sizes.
+        args.push('-vf', `scale=-2:min(${height}\\,trunc(ih/2)*2)`);
+        if (f.fps !== 'Original') args.push('-r', f.fps.replace(' fps', ''));
+        // Generic encoder thread cap first, so a codec's own -threads wins.
+        args.push('-threads', threads);
+        args.push(...codec.videoArgs);
+        args.push(
+          '-b:v', `${bitrate}k`,
+          '-minrate', `${bitrate}k`,
+          '-maxrate', `${bitrate}k`,
+          '-bufsize', `${bitrate * 2}k`,
+        );
+        args.push('-ac', '2', ...codec.audioArgs);
+        args.push(outputName);
+
+        // eslint-disable-next-line no-await-in-loop
+        const exitCode = await ffmpeg.exec(args);
+        if (exitCode !== 0) throw new Error(`ffmpeg exited with code ${exitCode}`);
+
+        // eslint-disable-next-line no-await-in-loop
+        data = await ffmpeg.readFile(outputName);
+        if (!data || data.length < 1024) throw new Error('Encoder produced no output');
+        if (data.length <= targetBytes * 1.02) break;
+
+        if (attempt === 2) {
+          throw new Error(
+            `Could not fit under ${f.targetMB} MB (got ${(data.length / 1e6).toFixed(1)} MB) `
+            + '— try a larger target, a shorter trim, or a lower frame rate',
+          );
+        }
+        bitrate = Math.max(100, Math.floor(bitrate * (targetBytes / data.length) * 0.95));
+        // eslint-disable-next-line no-await-in-loop
+        await safeFsOp(() => ffmpeg.deleteFile(outputName));
+        updateFile(id, { progress: 0 });
       }
-      if (f.fps !== 'Original') args.push('-r', f.fps.replace(' fps', ''));
-      args.push(...codec.videoArgs);
-      args.push(
-        '-b:v', `${bitrate}k`,
-        '-minrate', `${bitrate}k`,
-        '-maxrate', `${bitrate}k`,
-        '-bufsize', `${bitrate * 2}k`,
-      );
-      args.push('-ac', '2', ...codec.audioArgs);
-      args.push(outputName);
-
-      await ffmpeg.run(...args);
-
-      // ffmpeg.run resolves even when ffmpeg itself failed — a missing or
-      // near-empty output file is the reliable failure signal.
-      const data = ffmpeg.FS('readFile', outputName);
-      if (!data || data.length < 1024) throw new Error('Encoder produced no output');
 
       const outBlob = new Blob([data.buffer], { type: codec.mime });
       const outUrl = URL.createObjectURL(outBlob);
@@ -235,15 +353,37 @@ function App() {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(err);
-      updateFile(id, { status: 'ready', progress: 0 });
-      showToast(`Encoding ${f.name} failed — see the console for details`, 'error');
+      failed = true;
+      updateFile(id, {
+        status: 'error',
+        progress: 0,
+        errorLog: [...logTailRef.current, String(err && err.message ? err.message : err)].join('\n'),
+      });
+      showToast(`Encoding ${f.name} failed`, 'error');
       return false;
     } finally {
-      safeUnlink(inputName);
-      safeUnlink(outputName);
+      if (failed) {
+        // A failed exec can leave the wasm core aborted, and any further FS
+        // call on it can crash the tab — a fresh worker is the only safe
+        // recovery (it also wipes the in-memory FS, so no cleanup needed).
+        setEngine('loading');
+        try {
+          ffmpeg.terminate();
+          await loadEngine();
+          setEngine('ready');
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(err);
+          setEngine('error');
+        }
+      } else {
+        await safeFsOp(() => ffmpeg.deleteFile(outputName));
+        await safeFsOp(() => ffmpeg.unmount(MOUNT_DIR));
+        await safeFsOp(() => ffmpeg.deleteDir(MOUNT_DIR));
+      }
       encodingIdRef.current = null;
     }
-  }, [showToast, updateFile]);
+  }, [loadEngine, showToast, updateFile]);
 
   const convert = async () => {
     if (!ready || isEncoding) return;
@@ -396,6 +536,14 @@ function App() {
                 onDownload={download}
                 onShare={share}
                 onRedo={redo}
+              />
+            )}
+
+            {active && active.status === 'error' && (
+              <ErrorCard
+                name={active.name}
+                log={active.errorLog}
+                onRetry={() => updateFile(active.id, { status: 'ready', progress: 0, errorLog: null })}
               />
             )}
 

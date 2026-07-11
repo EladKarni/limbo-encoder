@@ -35,6 +35,9 @@ function MyDropzone({ onFiles }) {
         <PlusIcon color="#06120c" />
         Choose video
       </div>
+      <div className={styles.limit}>
+        Files up to 4 GB &mdash; a WebAssembly memory cap set by browsers, not by this app.
+      </div>
     </div>
   );
 }

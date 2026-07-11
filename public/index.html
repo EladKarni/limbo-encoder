@@ -16,6 +16,13 @@
     -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <!--
+      ffmpeg.wasm UMD runtime, served same-origin (see scripts/copy-ffmpeg-assets.js).
+      Must load before the app bundle, which reads window.FFmpegWASM.
+    -->
+    <script src="%PUBLIC_URL%/ffmpeg/ffmpeg.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/mp4box.all.min.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/mp4-muxer.js"></script>
+    <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.
       Only files inside the `public` folder can be referenced from the HTML.

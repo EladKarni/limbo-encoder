@@ -9,11 +9,13 @@ const STATUS_COLORS = {
   done: '#3ddc97',
   encoding: '#f4c04a',
   ready: '#5b6472',
+  error: '#f4644a',
 };
 
 function metaLabel(f) {
   if (f.status === 'encoding') return `${Math.round(f.progress)}%`;
   if (f.status === 'done') return fmtBytes(f.outBytes);
+  if (f.status === 'error') return 'failed';
   return fmtBytes(f.size);
 }
 

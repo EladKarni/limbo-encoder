@@ -1,0 +1,81 @@
+@import '../../styles/variables';
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+$red: #f4644a;
+
+.card {
+  border-radius: 18px;
+  border: 1px solid rgba(244, 100, 74, 0.55);
+  background: $panel;
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  animation: rise 0.4s ease both;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  background: rgba(244, 100, 74, 0.12);
+  border: 1px solid rgba(244, 100, 74, 0.55);
+  color: $red;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: $mono;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.name {
+  margin-top: 14px;
+  font-size: 14px;
+  font-family: $mono;
+  color: $muted-bright;
+}
+
+.log {
+  flex: 1;
+  margin: 14px 0 0;
+  padding: 14px;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 12px;
+  font-family: $mono;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: $muted;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  max-height: 260px;
+}
+
+.retry {
+  margin-top: 16px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 22px;
+  background: $panel-raised;
+  color: $text;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid $border-strong;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: $sans;
+
+  &:hover {
+    border-color: $green;
+  }
+}
