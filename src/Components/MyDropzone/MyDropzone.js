@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 
 import styles from './MyDropzone.module.scss';
 import { UploadIcon, PlusIcon } from '../Icons/Icons';
+import { MAX_INPUT_BYTES } from '../../utils/video';
 
 // MKV/AVI often report an empty or generic MIME type, so extensions are
 // listed alongside video/* to keep this in step with App.addFiles.
@@ -36,7 +37,7 @@ function MyDropzone({ onFiles }) {
         Choose video
       </div>
       <div className={styles.limit}>
-        Files up to 4 GB &mdash; a WebAssembly memory cap set by browsers, not by this app.
+        {`Files up to ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB. Larger videos? Trim them into parts first.`}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@
 // MP4Box global and muxing the Mp4Muxer global, both loaded via script tags
 // in index.html (their dists use syntax webpack 4 cannot parse).
 
-import { chooseHeight } from './video';
+import { CODECS, chooseHeight } from './video';
 
 const READ_CHUNK = 16 * 1024 * 1024;
 const QUEUE_HIGH_WATER = 60;
@@ -16,6 +16,19 @@ export function webCodecsAvailable() {
     && typeof window.OffscreenCanvas === 'function'
     && Boolean(window.MP4Box)
     && Boolean(window.Mp4Muxer);
+}
+
+// Which pipeline encodeOne() will run a file through. Single source of
+// truth: the pre-encode validation in App.js keys off this prediction, so
+// the routing must never be duplicated there — drift would silently break
+// the warnings. WebCodecs takes mp4/mov sources headed for H.264 output;
+// everything else runs on the wasm engine.
+export function plannedPath(f) {
+  const codec = CODECS[f.codec] || CODECS['H.264'];
+  if (codec.ext === 'mp4' && /\.(mp4|mov)$/i.test(f.name) && webCodecsAvailable()) {
+    return 'webcodecs';
+  }
+  return 'wasm';
 }
 
 // Serialize the codec-specific config box (avcC/hvcC) VideoDecoder needs.

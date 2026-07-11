@@ -93,8 +93,17 @@ retry with a corrected bitrate if the result is over target.
 
 ### Limits
 
-- **4 GB per input file.** This is the WebAssembly address-space cap browsers
-  impose — a web-platform restriction, not an app choice. The UI says so.
+- **4 GB per input file.** An app-chosen safety cap (`MAX_INPUT_BYTES`), not a
+  platform limit: inputs stream from disk on both pipelines (WORKERFS mount on
+  the wasm path, 16 MB slices on the WebCodecs path), so they never have to fit
+  in memory.
+- **~1.7 GB per output file on the wasm path** (`WASM_MAX_OUTPUT_BYTES`). The
+  wasm engine's output accumulates in an in-memory file whose growth eventually
+  needs a single allocation past Chromium's 2 GiB ArrayBuffer cap; measured
+  wall is ≈1.9 GB. The app blocks targets it can't deliver before encoding
+  starts. mp4/mov → H.264 conversions run on WebCodecs instead, whose own
+  in-memory muxer tops out around 2 GB — past that the encode fails with an
+  honest error card rather than an oversized or corrupt file.
 - WebM output uses the wasm VP8 encoder, which is CPU-only and single-threaded
   (the wasm libvpx build is unstable multithreaded) — expect it to be much
   slower than H.264.

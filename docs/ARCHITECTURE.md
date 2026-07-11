@@ -50,8 +50,17 @@ miss goes in the error card, never in a toast.
 mp4/mov input AND H.264 output AND WebCodecs available?
   ├─ yes → WebCodecs fast path (src/utils/webcodecs.js)
   │        └─ any failure → falls through to ↓
+  │          (unless the output would exceed the wasm ceiling —
+  │           then it fails honestly in the error card instead)
   └─ no  → ffmpeg.wasm path (inline in encodeOne)
 ```
+
+The decision itself lives in `plannedPath()` (`src/utils/webcodecs.js`) —
+the same function the pre-encode validation uses to predict which engine a
+file will hit, so routing and warnings cannot drift apart. Files that are
+certain to fail (wasm path + output over the ceiling, see *Input and output
+limits*) get a persistent amber `WarningNote` on their card and their
+Convert is disabled.
 
 ### WebCodecs fast path (`src/utils/webcodecs.js`)
 
@@ -168,8 +177,11 @@ mp4box 0.5.4, mp4-muxer 5.2.2, CRA 4 / webpack 4.
   `Duration:` lines; 0.12's `progress` values are wrong for real-world files
   (0, or >1). Parse `time=HH:MM:SS` from log lines yourself.
 - **Wasm heap is fixed at 1 GB** (binary declares min=max). MEMFS file
-  contents live in JS arrays outside the heap, so large *outputs* are fine;
-  it's decoder/encoder working memory that must fit.
+  contents live in JS arrays outside the heap, so outputs are not bound by
+  the heap — but they *are* bound by Chromium's 2 GiB per-ArrayBuffer cap,
+  which MEMFS's 1.125× growth steps hit at ≈1.9 GB of output (measured; see
+  *Input and output limits*). Decoder/encoder working memory must fit in the
+  heap.
 
 ### WebCodecs
 
@@ -227,11 +239,42 @@ third-party resources (Google Fonts, CDN scripts) are blocked, which is why
 fonts and all encoder runtimes are self-hosted. Everything being same-origin
 is also what makes the "100% local · nothing uploaded" pill true.
 
-### Input limits
+### Input and output limits
 
-Input files are capped at **4 GB** — the wasm32 address-space ceiling. The cap
-is enforced at file-add time (immediate toast) and again at encode time, and
-the dropzone states it, attributing it to the browser platform. (OBS
-recordings encoded with NVENC AV1 are handled by the WebCodecs path; if
-WebCodecs is unavailable, the wasm path fails with a decoder error shown in
-the error card.)
+Input files are capped at **4 GB** (`MAX_INPUT_BYTES`) — an app-chosen safety
+cap, enforced at file-add time (immediate toast) and again at encode time.
+It is *not* a platform memory limit: inputs never sit in memory whole on
+either path (WORKERFS mount on the wasm path, 16 MB slices on the WebCodecs
+path — WORKERFS has handled 13+ GB inputs in the wild). The earlier
+"browsers cap WebAssembly apps at 4 GB" attribution was wrong twice over:
+4 GiB is wasm32's address space, not a browser policy, and Chrome 133 /
+Firefox 134 shipped Memory64 in early 2025 so browsers no longer cap wasm at
+4 GB at all (Safari still lacks Memory64 as of mid-2026). Neither fact binds
+here anyway — the bundled core's heap is fixed at 1 GiB regardless, and
+lifting the input cap on the WebCodecs path is possible but deliberately out
+of scope. (OBS recordings encoded with NVENC AV1 are handled by the
+WebCodecs path; if WebCodecs is unavailable, the wasm path fails with a
+decoder error shown in the error card.)
+
+**Output size is the real wasm-path boundary.** The encoder's output
+accumulates in MEMFS, whose backing Uint8Array grows in 1.125× steps; once a
+step needs a single allocation past Chromium's 2 GiB ArrayBuffer cap, the
+allocation throws and `exec` fails (cleanly — the error card shows it, no
+tab crash). Measured 2026-07-11 in headless Chromium with
+`@ffmpeg/core-mt` 0.12.10: a 1.90 GB output completes the full
+exec → readFile → Blob pipeline, 1.95 GB fails deterministically with
+"Array buffer allocation failed", and a real x264 encode delivered a
+1.52 GB mp4 through the UI. `WASM_MAX_OUTPUT_BYTES` (1.7 GB, ~10% under the
+wall) encodes this: files predicted for the wasm path whose *planned output*
+(`plannedOutBytes` — the target, or the trimmed source share if smaller)
+exceeds it are blocked up front with a persistent `WarningNote`, and
+WebCodecs jobs over the ceiling skip the wasm fallback on failure. The
+practical consequence: Reddit/Slack (1 GB) presets work on the wasm path;
+Telegram-scale (2 GB) outputs currently fail on *both* paths in Chromium —
+the WebCodecs path's in-memory mp4 muxer (`ArrayBufferTarget`, fastStart
+`in-memory`) hits the same 2 GiB allocation cap while finalizing (measured:
+a 1.94 GB WebCodecs encode ran to completion, then threw "Array buffer
+allocation failed" in `muxer.finalize`). Such jobs are allowed to try
+(deliberate: the ceiling is engine-specific and may change), and fail
+honestly in the error card without falling back. Lifting that would need a
+chunked muxer target — out of scope.

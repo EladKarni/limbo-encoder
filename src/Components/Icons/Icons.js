@@ -135,6 +135,15 @@ export const BoltIcon = base(
   { size: 19, strokeWidth: 2.6 },
 );
 
+export const AlertIcon = base(
+  <>
+    <path d="M10.3 3.8 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+  </>,
+  { size: 16, strokeWidth: 2.2 },
+);
+
 export const CoffeeIcon = base(
   <>
     <path d="M10 2v2" />

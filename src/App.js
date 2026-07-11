@@ -16,11 +16,12 @@ import AdvancedPanel from './Components/AdvancedPanel/AdvancedPanel';
 import Button from './Components/Button/Button';
 import Toast from './Components/Toast/Toast';
 import { ClapperIcon } from './Components/Icons/Icons';
+import WarningNote from './Components/WarningNote/WarningNote';
 import {
   CODECS, CODEC_OPTIONS, effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
-  MAX_INPUT_BYTES, chooseHeight,
+  MAX_INPUT_BYTES, WASM_MAX_OUTPUT_BYTES, plannedOutBytes, chooseHeight,
 } from './utils/video';
-import { webCodecsAvailable, transcodeMp4 } from './utils/webcodecs';
+import { plannedPath, transcodeMp4 } from './utils/webcodecs';
 
 // The ffmpeg.wasm UMD runtime is loaded via a <script> tag in index.html
 // (webpack 4 cannot parse the library's dist, and self-hosting keeps it
@@ -51,6 +52,24 @@ async function safeFsOp(op) {
   } catch (err) {
     // Nothing to clean up.
   }
+}
+
+// Copy for files whose input size is over the app's cap.
+const oversizedMsg = (name) => (
+  `${name} is over ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB — trim it into parts first`
+);
+
+// Copy for targets the wasm engine cannot deliver (rendered from the
+// constant so the number can never drift from the enforced ceiling).
+const overCeilingMsg = `Sizes over ${Math.round(WASM_MAX_OUTPUT_BYTES / 1e6)} MB `
+  + 'aren\'t available for this type of video. Please choose a smaller target.';
+
+// True when a file is guaranteed to fail: it will run on the wasm engine
+// and the bytes it would really produce (target- or source-bound) exceed
+// the engine's output ceiling. Recomputed on every render, so it tracks
+// file-add, target, codec, and trim changes automatically.
+function overWasmCeiling(f) {
+  return plannedPath(f) === 'wasm' && plannedOutBytes(f) > WASM_MAX_OUTPUT_BYTES;
 }
 
 function App() {
@@ -105,6 +124,17 @@ function App() {
   const updateFile = useCallback((id, patch) => {
     setFiles((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
   }, []);
+
+  // Shared failure surface for both encode paths: the persistent error card
+  // carrying the log tail (never toast-only) plus a transient toast.
+  const failEncode = useCallback((id, name, lastLine) => {
+    updateFile(id, {
+      status: 'error',
+      progress: 0,
+      errorLog: [...logTailRef.current, lastLine].join('\n'),
+    });
+    showToast(`Encoding ${name} failed`, 'error');
+  }, [updateFile, showToast]);
 
   const loadEngine = useCallback(() => ffmpeg.load({
     coreURL: `${FFMPEG_BASE}/ffmpeg-core.js`,
@@ -165,10 +195,7 @@ function App() {
     );
     const oversized = videos.find((f) => f.size > MAX_INPUT_BYTES);
     if (oversized) {
-      showToast(
-        `${oversized.name} is over 4 GB — browsers cap WebAssembly apps at 4 GB of memory. That's a web-platform limit, not ours.`,
-        'error',
-      );
+      showToast(oversizedMsg(oversized.name), 'error');
     }
     const accepted = videos.filter((f) => f.size <= MAX_INPUT_BYTES);
     if (!accepted.length) return;
@@ -236,10 +263,13 @@ function App() {
       return false;
     }
     if (f.size > MAX_INPUT_BYTES) {
-      showToast(
-        `${f.name} is over 4 GB — browsers cap WebAssembly apps at 4 GB of memory. That's a web-platform limit, not ours.`,
-        'error',
-      );
+      showToast(oversizedMsg(f.name), 'error');
+      return false;
+    }
+    if (overWasmCeiling(f)) {
+      // Also surfaced as a persistent WarningNote on the file's card; this
+      // guard is what keeps batch runs from attempting a doomed encode.
+      showToast(`${f.name}: ${overCeilingMsg}`, 'error');
       return false;
     }
 
@@ -253,9 +283,10 @@ function App() {
 
     // Fast path: for mp4/mov sources targeting H.264, transcode with the
     // browser's own WebCodecs decoders/encoders — hardware speed, and it
-    // handles inputs (AV1, HEVC) the wasm core cannot decode. Any failure
-    // falls through to the wasm encoder below.
-    if (codec.ext === 'mp4' && /\.(mp4|mov)$/i.test(f.name) && webCodecsAvailable()) {
+    // handles inputs (AV1, HEVC) the wasm core cannot decode. Failures fall
+    // through to the wasm encoder below, unless the output is too big for
+    // it to ever deliver.
+    if (plannedPath(f) === 'webcodecs') {
       try {
         const blob = await transcodeMp4({
           file: f.file,
@@ -281,8 +312,16 @@ function App() {
         return true;
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.warn('WebCodecs path failed, falling back to ffmpeg:', err);
+        console.warn('WebCodecs path failed:', err);
         logTailRef.current.push(`WebCodecs: ${err && err.message ? err.message : err}`);
+        // An output this large is beyond the wasm engine's ceiling, so
+        // falling back would only trade this failure for a slower,
+        // guaranteed one — fail honestly in the persistent card instead.
+        if (plannedOutBytes(f) > WASM_MAX_OUTPUT_BYTES) {
+          failEncode(id, f.name, 'This video couldn\'t be converted at this size. Try a smaller target.');
+          encodingIdRef.current = null;
+          return false;
+        }
         updateFile(id, { progress: 0 });
       }
     }
@@ -375,12 +414,7 @@ function App() {
       // eslint-disable-next-line no-console
       console.error(err);
       failed = true;
-      updateFile(id, {
-        status: 'error',
-        progress: 0,
-        errorLog: [...logTailRef.current, String(err && err.message ? err.message : err)].join('\n'),
-      });
-      showToast(`Encoding ${f.name} failed`, 'error');
+      failEncode(id, f.name, String(err && err.message ? err.message : err));
       return false;
     } finally {
       if (failed) {
@@ -404,7 +438,7 @@ function App() {
       }
       encodingIdRef.current = null;
     }
-  }, [loadEngine, showToast, updateFile]);
+  }, [loadEngine, showToast, updateFile, failEncode]);
 
   const convert = async () => {
     if (!ready || isEncoding) return;
@@ -481,7 +515,8 @@ function App() {
   const bitrateLabel = br > 0 ? `${br.toLocaleString()} kbps` : '—';
   const convertLabel = files.length > 1 ? `Convert all (${readyCount})` : 'Convert';
   const encodable = files.filter(
-    (f) => f.status === 'ready' && f.duration > 0 && f.targetMB > 0 && isTargetReachable(f),
+    (f) => f.status === 'ready' && f.duration > 0 && f.targetMB > 0
+      && isTargetReachable(f) && !overWasmCeiling(f),
   );
   const canConvert = files.length > 1
     ? encodable.length > 0
@@ -543,6 +578,9 @@ function App() {
                   trimEnd={active.trimEnd}
                   onChange={(patch) => updateFile(active.id, patch)}
                 />
+                {overWasmCeiling(active) && (
+                  <WarningNote>{overCeilingMsg}</WarningNote>
+                )}
               </>
             )}
 

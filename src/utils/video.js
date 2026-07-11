@@ -1,6 +1,16 @@
-// Hard input cap. WebAssembly is a 32-bit platform: browsers cap what a wasm
-// app can address at 4 GB. Every in-browser encoder shares this restriction.
+// Hard input cap, chosen by this app. Inputs stream from disk on both paths
+// (WORKERFS mount on the wasm path, 16 MB slices on the WebCodecs path), so
+// this is a sanity bound on what a browser tab should attempt — not a
+// platform memory limit. See docs/ARCHITECTURE.md § Input and output limits.
 export const MAX_INPUT_BYTES = 4 * (1024 ** 3);
+
+// Output ceiling for the ffmpeg.wasm path. The output file accumulates in
+// MEMFS, whose backing array grows 1.125x at a time; once a growth step
+// needs a single allocation past Chromium's 2 GiB ArrayBuffer cap, exec
+// fails. Measured 2026-07-11 in headless Chromium (@ffmpeg/core-mt 0.12.10):
+// a 1.90 GB output completes end-to-end, 1.95 GB fails deterministically
+// with "Array buffer allocation failed". Set ~10% under that wall.
+export const WASM_MAX_OUTPUT_BYTES = 1.7e9;
 
 // Encoders available in the bundled ffmpeg.wasm core.
 export const CODECS = {
@@ -71,6 +81,16 @@ export function chooseHeight(kbps, srcW, srcH, fps, maxH) {
     if ((kbps * 1000) / (w * ladder[i] * fps) >= MIN_BPP) return ladder[i];
   }
   return ladder[ladder.length - 1];
+}
+
+// Upper bound on the bytes an encode will really produce: the target,
+// unless the (trimmed share of the) source is smaller — bitrateKbps caps
+// the video budget at the source's own bitrate, so the output can never
+// outgrow the source. A big platform preset on a small file is therefore
+// harmless; only files that can actually fill their target count.
+export function plannedOutBytes(f) {
+  const ratio = f.duration ? effDur(f) / f.duration : 1;
+  return Math.min((f.targetMB || 0) * 1e6, f.size * ratio);
 }
 
 // Rough output size estimate, in bytes.
