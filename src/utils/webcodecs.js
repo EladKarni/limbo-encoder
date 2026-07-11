@@ -4,7 +4,10 @@
 // MP4Box global and muxing the Mp4Muxer global, both loaded via script tags
 // in index.html (their dists use syntax webpack 4 cannot parse).
 
-import { CODECS, chooseHeight } from './video';
+import { CODECS } from './codecs';
+import {
+  chooseHeight, budgetKbps, correctBitrate, TOLERANCE, ATTEMPTS, MIN_VIDEO_KBPS,
+} from './fit';
 
 const READ_CHUNK = 16 * 1024 * 1024;
 const QUEUE_HIGH_WATER = 60;
@@ -183,14 +186,15 @@ async function transcodeOnce({
     : (endUs - startUs) / 1e6);
 
   // Audio is copied verbatim, so budget the video bitrate around the
-  // track's real bitrate rather than an assumed 128k.
+  // track's real bitrate rather than an assumed 128k — same budget formula
+  // as the wasm path (fit.budgetKbps), only the audio figure differs.
   const audioKbps = aTrack
     ? Math.max(32, Math.round((aTrack.bitrate || 128000) / 1000))
     : 0;
   const sourceVideoKbps = Math.round((vTrack.bitrate || (file.size * 8) / srcDur) / 1000);
-  const budgetKbps = ((8000 * targetMB) / outDur) * 0.95 - audioKbps;
+  const budget = budgetKbps(targetMB, outDur, audioKbps);
   const videoKbps = videoKbpsOverride
-    || Math.max(100, Math.min(budgetKbps, sourceVideoKbps));
+    || Math.max(MIN_VIDEO_KBPS, Math.min(budget, sourceVideoKbps));
 
   // Pick the largest resolution (capped by the user's choice) where the
   // budget still gives a workable bits-per-pixel. Encoders can't hit very
@@ -389,16 +393,21 @@ async function transcodeOnce({
 export async function transcodeMp4(opts) {
   const targetBytes = opts.targetMB * 1e6;
   let pass = await transcodeOnce(opts);
-  for (let i = 0; i < 3 && pass.blob.size > targetBytes * 1.02 && pass.videoKbps > 100; i += 1) {
+  // Up to ATTEMPTS corrective passes after the initial encode (the wasm loop
+  // counts its initial pass within ATTEMPTS instead — same literal, different
+  // loop shape, both preserved from before the fit.js extraction).
+  for (
+    let i = 0;
+    i < ATTEMPTS && pass.blob.size > targetBytes * TOLERANCE
+      && pass.videoKbps > MIN_VIDEO_KBPS;
+    i += 1
+  ) {
     // A lower corrected bitrate also re-picks a lower ladder resolution.
-    const corrected = Math.max(
-      100,
-      Math.floor(pass.videoKbps * (targetBytes / pass.blob.size) * 0.95),
-    );
+    const corrected = correctBitrate(pass.videoKbps, pass.blob.size, targetBytes);
     // eslint-disable-next-line no-await-in-loop
     pass = await transcodeOnce({ ...opts, videoKbpsOverride: corrected });
   }
-  if (pass.blob.size > targetBytes * 1.02) {
+  if (pass.blob.size > targetBytes * TOLERANCE) {
     throw new Error(
       `Result is ${(pass.blob.size / 1e6).toFixed(1)} MB, over the ${opts.targetMB} MB target`,
     );

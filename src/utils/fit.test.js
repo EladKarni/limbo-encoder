@@ -1,6 +1,7 @@
 // Fit-math unit tests — the browser-free core of the never-exceed-target
-// guarantee. These lock the budget/ladder/reachability behavior so the
-// Phase 3 split of video.js into fit.js/codecs.js can prove it is identical.
+// guarantee. These lock the budget/ladder/reachability behavior; they proved
+// the Phase 3 split of video.js into fit.js was byte-identical and now guard
+// fit.js directly.
 import {
   effDur,
   bitrateKbps,
@@ -8,9 +9,10 @@ import {
   chooseHeight,
   plannedOutBytes,
   estimateOutBytes,
+  budgetKbps,
   MIN_VIDEO_KBPS,
   MIN_BPP,
-} from './video';
+} from './fit';
 
 // A minimal file record; override per case.
 const mk = (over = {}) => ({
@@ -32,6 +34,25 @@ describe('effDur', () => {
     ['no duration at all', { duration: 0, trimStart: 0, trimEnd: 0 }, 0],
   ])('%s', (_label, over, expected) => {
     expect(effDur(mk(over))).toBeCloseTo(expected, 5);
+  });
+});
+
+describe('budgetKbps', () => {
+  it('is the shared target budget both paths compute', () => {
+    // (8000*10/60)*0.95 - 128 = 1138.666...
+    expect(budgetKbps(10, 60, 128)).toBeCloseTo(1138.6667, 3);
+  });
+
+  it('passes the audio figure through as a parameter (the intentional fork)', () => {
+    // Same target/duration, different audio assumptions -> different budgets.
+    const wasm = budgetKbps(10, 60, 128); // wasm path assumes 128k
+    const webcodecs = budgetKbps(10, 60, 64); // WebCodecs uses the real track
+    expect(webcodecs - wasm).toBeCloseTo(64, 6);
+  });
+
+  it('returns 0 when duration or target is missing', () => {
+    expect(budgetKbps(0, 60, 128)).toBe(0);
+    expect(budgetKbps(10, 0, 128)).toBe(0);
   });
 });
 

@@ -26,3 +26,6 @@ yarn-error.log*
 # which also generates the service worker from scripts/sw.template.js
 /public/ffmpeg
 /public/sw.js
+
+# fallow local snapshots (trend tracking, not shared)
+/.fallow

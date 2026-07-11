@@ -1,25 +1,18 @@
 // Retry-convergence tests for the measure-and-correct loop that backs the
 // never-exceed-target guarantee. Both encode paths (App.js wasm loop and
-// webcodecs.js transcodeMp4) implement the SAME loop with the SAME literals:
+// webcodecs.js transcodeMp4) implement the SAME loop with the SAME rules:
 //
 //   - up to ATTEMPTS (3) passes
 //   - accept when output <= target * TOLERANCE (1.02)
 //   - otherwise correct: bitrate = max(FLOOR, floor(bitrate * (target/actual) * 0.95))
 //   - a lower corrected bitrate also re-picks a lower resolution rung
 //
-// Phase 3 hoists these literals + the correction into fit.js; this test then
-// imports them so it validates the real extracted code. Until then the
-// constants below mirror the source exactly (kept in one place so a broken
-// correction formula fails here).
-const ATTEMPTS = 3;
-const TOLERANCE = 1.02;
-const CORRECTION = 0.95;
-const FLOOR = 100; // MIN_VIDEO_KBPS
-
-// The correction step, exactly as written in both loops.
-function correctBitrate(bitrate, actualBytes, targetBytes) {
-  return Math.max(FLOOR, Math.floor(bitrate * (targetBytes / actualBytes) * CORRECTION));
-}
+// The constants and the correction step are imported from fit.js, so this
+// validates the real extracted code — a broken correction formula or a
+// changed tolerance/floor fails here.
+import {
+  ATTEMPTS, TOLERANCE, MIN_VIDEO_KBPS as FLOOR, correctBitrate,
+} from './fit';
 
 // A fake encoder whose output scales with bitrate but overshoots the
 // requested average by `overshoot`x — the failure mode real encoders show at

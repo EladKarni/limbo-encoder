@@ -17,10 +17,11 @@ import Button from './Components/Button/Button';
 import Toast from './Components/Toast/Toast';
 import { LogoMark } from './Components/Icons/Icons';
 import WarningNote from './Components/WarningNote/WarningNote';
+import { CODECS, CODEC_OPTIONS, MAX_INPUT_BYTES } from './utils/codecs';
 import {
-  CODECS, CODEC_OPTIONS, effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
-  MAX_INPUT_BYTES, WASM_MAX_OUTPUT_BYTES, plannedOutBytes, chooseHeight,
-} from './utils/video';
+  effDur, bitrateKbps, estimateOutBytes, isTargetReachable, WASM_MAX_OUTPUT_BYTES,
+  plannedOutBytes, chooseHeight, overWasmCeiling, correctBitrate, TOLERANCE, ATTEMPTS,
+} from './utils/fit';
 import { plannedPath, transcodeMp4 } from './utils/webcodecs';
 
 // The ffmpeg.wasm UMD runtime is loaded via a <script> tag in index.html
@@ -62,17 +63,11 @@ const oversizedMsg = (name) => (
 );
 
 // Copy for targets the wasm engine cannot deliver (rendered from the
-// constant so the number can never drift from the enforced ceiling).
+// constant so the number can never drift from the enforced ceiling). The
+// overWasmCeiling rule itself lives in fit.js; App supplies the planned path
+// and this user-facing copy.
 const overCeilingMsg = `Sizes over ${Math.round(WASM_MAX_OUTPUT_BYTES / 1e6)} MB `
   + 'aren\'t available for this type of video. Please choose a smaller target.';
-
-// True when a file is guaranteed to fail: it will run on the wasm engine
-// and the bytes it would really produce (target- or source-bound) exceed
-// the engine's output ceiling. Recomputed on every render, so it tracks
-// file-add, target, codec, and trim changes automatically.
-function overWasmCeiling(f) {
-  return plannedPath(f) === 'wasm' && plannedOutBytes(f) > WASM_MAX_OUTPUT_BYTES;
-}
 
 function App() {
   const [engine, setEngine] = useState('loading');
@@ -269,7 +264,7 @@ function App() {
       showToast(oversizedMsg(f.name), 'error');
       return false;
     }
-    if (overWasmCeiling(f)) {
+    if (overWasmCeiling(f, plannedPath(f))) {
       // Also surfaced as a persistent WarningNote on the file's card; this
       // guard is what keeps batch runs from attempting a doomed encode.
       showToast(`${f.name}: ${overCeilingMsg}`, 'error');
@@ -358,7 +353,7 @@ function App() {
       // result size, and retry with a measured correction if it misses.
       let bitrate = bitrateKbps(f);
       let data = null;
-      for (let attempt = 0; attempt < 3; attempt += 1) {
+      for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
         const height = chooseHeight(bitrate, srcW, srcH, fpsForBudget, userMaxH);
 
         const args = ['-threads', threads];
@@ -387,15 +382,15 @@ function App() {
         // eslint-disable-next-line no-await-in-loop
         data = await ffmpeg.readFile(outputName);
         if (!data || data.length < 1024) throw new Error('Encoder produced no output');
-        if (data.length <= targetBytes * 1.02) break;
+        if (data.length <= targetBytes * TOLERANCE) break;
 
-        if (attempt === 2) {
+        if (attempt === ATTEMPTS - 1) {
           throw new Error(
             `Could not fit under ${f.targetMB} MB (got ${(data.length / 1e6).toFixed(1)} MB) `
             + '— try a larger target, a shorter trim, or a lower frame rate',
           );
         }
-        bitrate = Math.max(100, Math.floor(bitrate * (targetBytes / data.length) * 0.95));
+        bitrate = correctBitrate(bitrate, data.length, targetBytes);
         // eslint-disable-next-line no-await-in-loop
         await safeFsOp(() => ffmpeg.deleteFile(outputName));
         updateFile(id, { progress: 0 });
@@ -519,7 +514,7 @@ function App() {
   const convertLabel = files.length > 1 ? `Convert all (${readyCount})` : 'Convert';
   const encodable = files.filter(
     (f) => f.status === 'ready' && f.duration > 0 && f.targetMB > 0
-      && isTargetReachable(f) && !overWasmCeiling(f),
+      && isTargetReachable(f) && !overWasmCeiling(f, plannedPath(f)),
   );
   const canConvert = files.length > 1
     ? encodable.length > 0
@@ -581,7 +576,7 @@ function App() {
                   trimEnd={active.trimEnd}
                   onChange={(patch) => updateFile(active.id, patch)}
                 />
-                {overWasmCeiling(active) && (
+                {overWasmCeiling(active, plannedPath(active)) && (
                   <WarningNote>{overCeilingMsg}</WarningNote>
                 )}
               </>

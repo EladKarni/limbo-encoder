@@ -1,10 +1,8 @@
 // Routing + wasm-output-ceiling tests. plannedPath is the single source of
-// truth for which engine a file hits; the ceiling rule (currently
-// App.overWasmCeiling) composes plannedPath with plannedOutBytes and
-// WASM_MAX_OUTPUT_BYTES. Phase 3 moves the ceiling rule into fit.js — when it
-// does, only the imports below change, not the assertions.
+// truth for which engine a file hits; overWasmCeiling (now in fit.js)
+// composes the planned path with plannedOutBytes and WASM_MAX_OUTPUT_BYTES.
 import { plannedPath, webCodecsAvailable } from './webcodecs';
-import { plannedOutBytes, WASM_MAX_OUTPUT_BYTES } from './video';
+import { plannedOutBytes, WASM_MAX_OUTPUT_BYTES, overWasmCeiling } from './fit';
 
 // Make webCodecsAvailable() return true by planting the globals it probes.
 function enableWebCodecs() {
@@ -88,11 +86,9 @@ describe('plannedPath', () => {
   });
 });
 
-// The overWasmCeiling rule, reconstructed from its two ingredients so the
-// test survives the Phase 3 move into fit.js.
-const overWasmCeiling = (f) => plannedPath(f) === 'wasm'
-  && plannedOutBytes(f) > WASM_MAX_OUTPUT_BYTES;
-
+// overWasmCeiling now lives in fit.js and takes the already-computed planned
+// path (keeping fit.js free of a routing import cycle). App calls it with
+// plannedPath(f); the tests mirror that exactly.
 describe('WASM_MAX_OUTPUT_BYTES ceiling', () => {
   it('is the documented ~1.7 GB wall', () => {
     expect(WASM_MAX_OUTPUT_BYTES).toBe(1.7e9);
@@ -105,7 +101,7 @@ describe('WASM_MAX_OUTPUT_BYTES ceiling', () => {
       name: 'big.mkv', codec: 'H.264', targetMB: 3000, size: 10e9, duration: 60,
     });
     expect(plannedOutBytes(f)).toBeGreaterThan(WASM_MAX_OUTPUT_BYTES);
-    expect(overWasmCeiling(f)).toBe(true);
+    expect(overWasmCeiling(f, plannedPath(f))).toBe(true);
   });
 
   it('does not flag a webcodecs-path file even over the ceiling (engine-specific)', () => {
@@ -114,7 +110,7 @@ describe('WASM_MAX_OUTPUT_BYTES ceiling', () => {
       name: 'big.mp4', codec: 'H.264', targetMB: 3000, size: 10e9, duration: 60,
     });
     expect(plannedPath(f)).toBe('webcodecs');
-    expect(overWasmCeiling(f)).toBe(false);
+    expect(overWasmCeiling(f, plannedPath(f))).toBe(false);
   });
 
   it('does not flag a wasm-path file under the ceiling', () => {
@@ -123,7 +119,7 @@ describe('WASM_MAX_OUTPUT_BYTES ceiling', () => {
       name: 'ok.webm', codec: 'VP8 (WebM)', targetMB: 1000, size: 5e9, duration: 60,
     });
     expect(plannedOutBytes(f)).toBeLessThan(WASM_MAX_OUTPUT_BYTES);
-    expect(overWasmCeiling(f)).toBe(false);
+    expect(overWasmCeiling(f, plannedPath(f))).toBe(false);
   });
 
   it('does not flag when a small source cannot fill a huge target (source-bound planned bytes)', () => {
@@ -133,6 +129,6 @@ describe('WASM_MAX_OUTPUT_BYTES ceiling', () => {
       name: 'small.mkv', codec: 'H.264', targetMB: 3000, size: 100e6, duration: 60,
     });
     expect(plannedOutBytes(f)).toBe(100e6);
-    expect(overWasmCeiling(f)).toBe(false);
+    expect(overWasmCeiling(f, plannedPath(f))).toBe(false);
   });
 });

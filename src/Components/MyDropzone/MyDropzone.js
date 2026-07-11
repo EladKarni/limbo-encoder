@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 
 import styles from './MyDropzone.module.scss';
 import { UploadIcon, PlusIcon } from '../Icons/Icons';
-import { MAX_INPUT_BYTES } from '../../utils/video';
+import { MAX_INPUT_BYTES } from '../../utils/codecs';
 
 // MKV/AVI often report an empty or generic MIME type, so extensions are
 // listed alongside video/* to keep this in step with App.addFiles.
