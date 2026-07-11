@@ -22,5 +22,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# ffmpeg.wasm runtime copied from node_modules by scripts/copy-ffmpeg-assets.js
+# ffmpeg.wasm runtime copied from node_modules by scripts/copy-ffmpeg-assets.js,
+# which also generates the service worker from scripts/sw.template.js
 /public/ffmpeg
+/public/sw.js

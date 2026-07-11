@@ -19,9 +19,9 @@
       ffmpeg.wasm UMD runtime, served same-origin (see scripts/copy-ffmpeg-assets.js).
       Must load before the app bundle, which reads window.FFmpegWASM.
     -->
-    <script src="%PUBLIC_URL%/ffmpeg/ffmpeg.js"></script>
-    <script src="%PUBLIC_URL%/ffmpeg/mp4box.all.min.js"></script>
-    <script src="%PUBLIC_URL%/ffmpeg/mp4-muxer.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_VERSION%/ffmpeg.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_VERSION%/mp4box.all.min.js"></script>
+    <script src="%PUBLIC_URL%/ffmpeg/%REACT_APP_FFMPEG_VERSION%/mp4-muxer.js"></script>
     <!--
       Notice the use of %PUBLIC_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.

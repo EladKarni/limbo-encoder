@@ -3,3 +3,35 @@ for = "/*"
   [headers.values]
     Cross-Origin-Opener-Policy = "same-origin"
     Cross-Origin-Embedder-Policy = "require-corp"
+
+# The encoder runtime lives under a versioned path (public/ffmpeg/<version>/,
+# see scripts/copy-ffmpeg-assets.js) and CRA output under /static/ is
+# content-hashed, so both are safe to cache forever. Without this, Netlify
+# defaults to max-age=0 and every visit re-validates (and routinely
+# re-downloads) the 32 MB wasm core.
+[[headers]]
+for = "/ffmpeg/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+for = "/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The entry points must revalidate so deploys and service-worker updates
+# propagate immediately.
+[[headers]]
+for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
