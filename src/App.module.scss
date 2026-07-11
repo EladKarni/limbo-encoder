@@ -175,12 +175,19 @@
 .footer {
   margin-top: 48px;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  font-size: 12.5px;
+  color: $dim;
+}
+
+.credits {
+  display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px 22px;
-  font-size: 12.5px;
-  color: $dim;
 
   a {
     color: $green;
@@ -188,6 +195,14 @@
     &:hover {
       color: $green-bright;
     }
+  }
+}
+
+// Container the official Ko-fi widget renders into; collapse entirely when
+// the widget didn't load so the footer gap doesn't double up.
+.kofi {
+  &:empty {
+    display: none;
   }
 }
 

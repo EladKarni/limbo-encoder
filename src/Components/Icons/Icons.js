@@ -134,3 +134,13 @@ export const BoltIcon = base(
   <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />,
   { size: 19, strokeWidth: 2.6 },
 );
+
+export const CoffeeIcon = base(
+  <>
+    <path d="M10 2v2" />
+    <path d="M14 2v2" />
+    <path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1" />
+    <path d="M6 2v2" />
+  </>,
+  { size: 15, strokeWidth: 2.2 },
+);

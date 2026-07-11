@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 import styles from './DoneCard.module.scss';
 import {
-  CheckIcon, DownloadIcon, ShareIcon, RedoIcon,
+  CheckIcon, DownloadIcon, ShareIcon, RedoIcon, CoffeeIcon,
 } from '../Icons/Icons';
 import { fmtBytes } from '../../utils/format';
 
@@ -33,6 +33,19 @@ function DoneCard({
           Redo
         </button>
       </div>
+      <a
+        className={styles.kofi}
+        href="https://ko-fi.com/eksolutions"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <CoffeeIcon color="#f4c04a" />
+        <span>
+          Saved you an upload?
+          {' '}
+          <strong>Buy me a coffee</strong>
+        </span>
+      </a>
     </div>
   );
 }

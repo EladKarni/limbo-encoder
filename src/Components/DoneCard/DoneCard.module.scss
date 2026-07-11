@@ -109,3 +109,30 @@
     border-color: $border-strong;
   }
 }
+
+.kofi {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px dashed $border-strong;
+  border-radius: 13px;
+  color: $muted;
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  animation: rise 0.4s ease 0.35s both;
+
+  strong {
+    color: $amber;
+    font-weight: 600;
+  }
+
+  &:hover {
+    border-color: $amber;
+    background: rgba(244, 192, 74, 0.05);
+    color: $muted-bright;
+  }
+}
