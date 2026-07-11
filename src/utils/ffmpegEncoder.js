@@ -77,6 +77,33 @@ function threadCap() {
   return `${Math.min(8, Math.max(2, Math.floor((navigator.hardwareConcurrency || 4) / 2)))}`;
 }
 
+// The ffmpeg command line for one pass. Assembly only — the -threads caps, the
+// even-dimension scale filter, and the CBR bitrate flags are unchanged from
+// before this was hoisted out of the retry loop.
+function buildExecArgs({
+  threads, trimmed, trimStart, inputPath, durationSec, height, fps, codec, bitrate, outputName,
+}) {
+  const args = ['-threads', threads];
+  if (trimmed && trimStart > 0) args.push('-ss', `${trimStart}`);
+  args.push('-i', inputPath);
+  if (trimmed) args.push('-t', `${durationSec}`);
+  // Always scale to even dimensions — yuv420p encoders reject odd sizes.
+  args.push('-vf', `scale=-2:min(${height}\\,trunc(ih/2)*2)`);
+  if (fps !== 'Original') args.push('-r', fps.replace(' fps', ''));
+  // Generic encoder thread cap first, so a codec's own -threads wins.
+  args.push('-threads', threads);
+  args.push(...codec.videoArgs);
+  args.push(
+    '-b:v', `${bitrate}k`,
+    '-minrate', `${bitrate}k`,
+    '-maxrate', `${bitrate}k`,
+    '-bufsize', `${bitrate * 2}k`,
+  );
+  args.push('-ac', '2', ...codec.audioArgs);
+  args.push(outputName);
+  return args;
+}
+
 // One end-to-end wasm transcode, guaranteed to fit targetBytes. Mounts the
 // input via WORKERFS, runs the measure-and-correct retry loop, cleans up the
 // FS, and returns the output Blob. Throws on any failure WITHOUT recovering —
@@ -102,25 +129,18 @@ export async function transcodeWasm({
     let data = null;
     for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
       const height = chooseHeight(bitrate, srcW, srcH, fpsForBudget, userMaxH);
-
-      const args = ['-threads', threads];
-      if (trimmed && trimStart > 0) args.push('-ss', `${trimStart}`);
-      args.push('-i', inputPath);
-      if (trimmed) args.push('-t', `${durationSec}`);
-      // Always scale to even dimensions — yuv420p encoders reject odd sizes.
-      args.push('-vf', `scale=-2:min(${height}\\,trunc(ih/2)*2)`);
-      if (fps !== 'Original') args.push('-r', fps.replace(' fps', ''));
-      // Generic encoder thread cap first, so a codec's own -threads wins.
-      args.push('-threads', threads);
-      args.push(...codec.videoArgs);
-      args.push(
-        '-b:v', `${bitrate}k`,
-        '-minrate', `${bitrate}k`,
-        '-maxrate', `${bitrate}k`,
-        '-bufsize', `${bitrate * 2}k`,
-      );
-      args.push('-ac', '2', ...codec.audioArgs);
-      args.push(outputName);
+      const args = buildExecArgs({
+        threads,
+        trimmed,
+        trimStart,
+        inputPath,
+        durationSec,
+        height,
+        fps,
+        codec,
+        bitrate,
+        outputName,
+      });
 
       // eslint-disable-next-line no-await-in-loop
       const exitCode = await ffmpeg.exec(args);
