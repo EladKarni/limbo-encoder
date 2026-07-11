@@ -128,22 +128,20 @@ function waitForDrain(decoder, encoder) {
   });
 }
 
-// One end-to-end transcode pass. videoKbpsOverride skips the budget
-// computation (used by the corrective pass below).
-async function transcodeOnce({
-  file, targetMB, trimStart, trimEnd, resHeight, fpsOut, onProgress, videoKbpsOverride,
-}) {
+// Pump the header. appendBuffer returns the next offset mp4box wants, so
+// moov-at-end files skip over the mdat instead of reading gigabytes. Bytes
+// must never be fed twice — mp4box would deliver samples twice — so track how
+// far the contiguous-from-zero region reaches and where the first
+// skipped-ahead (already appended) region begins. Creates the MP4Box file and
+// returns it alongside the moov info and those two offsets, which the
+// sample-extraction pass resumes from.
+async function demuxHeader(file) {
   const mp4 = window.MP4Box.createFile();
   let info = null;
   let demuxError = null;
   mp4.onError = (e) => { demuxError = new Error(`demux failed: ${e}`); };
   mp4.onReady = (i) => { info = i; };
 
-  // Pump the header. appendBuffer returns the next offset mp4box wants, so
-  // moov-at-end files skip over the mdat instead of reading gigabytes.
-  // Bytes must never be fed twice — mp4box would deliver samples twice — so
-  // track how far the contiguous-from-zero region reaches and where the
-  // first skipped-ahead (already appended) region begins.
   let offset = 0;
   let contiguousUpTo = 0;
   let tailStart = file.size;
@@ -163,31 +161,50 @@ async function transcodeOnce({
   }
   if (demuxError) throw demuxError;
   if (!info) throw new Error('No moov box found in file');
+  return {
+    mp4, info, contiguousUpTo, tailStart,
+  };
+}
 
+// The video track, the first AAC audio track (if any), and that track's
+// AudioSpecificConfig — the bytes needed to copy the audio verbatim.
+function probeTracks(mp4, info) {
   const vTrack = info.videoTracks && info.videoTracks[0];
   if (!vTrack) throw new Error('No video track found');
   const aTrack = (info.audioTracks || []).find((t) => t.codec.indexOf('mp4a') === 0);
   const asc = aTrack ? audioSpecificConfig(mp4, aTrack.id) : null;
   if (aTrack && !asc) throw new Error('Could not read the AAC configuration');
+  return { vTrack, aTrack, asc };
+}
 
+// Source geometry, source/target fps, and the trim window in microseconds.
+function computeTimeline(vTrack, file, trimStart, trimEnd, fpsOut) {
   const srcW = vTrack.video.width;
   const srcH = vTrack.video.height;
   const srcDur = vTrack.duration / vTrack.timescale;
   const fpsSrc = srcDur > 0 ? vTrack.nb_samples / srcDur : 30;
   const fpsTarget = fpsOut && fpsOut < fpsSrc ? fpsOut : fpsSrc;
-
-  // Note: outW/outH are chosen after the bitrate budget below, because the
-  // resolution ladder depends on the bits-per-pixel the budget affords.
-
   const startUs = (trimStart || 0) * 1e6;
   const endUs = trimEnd && trimEnd < srcDur ? trimEnd * 1e6 : srcDur * 1e6 + 1;
   const outDur = Math.max(0.1, (endUs - startUs) / 1e6 > srcDur
     ? srcDur - (trimStart || 0)
     : (endUs - startUs) / 1e6);
+  return {
+    srcW, srcH, srcDur, fpsSrc, fpsTarget, startUs, endUs, outDur,
+  };
+}
 
-  // Audio is copied verbatim, so budget the video bitrate around the
-  // track's real bitrate rather than an assumed 128k — same budget formula
-  // as the wasm path (fit.budgetKbps), only the audio figure differs.
+// The video bitrate budget and the resolution it can afford. Audio is copied
+// verbatim, so the budget is set aside around the track's real audio bitrate
+// (not an assumed 128k) and capped at the source video bitrate. The resolution
+// ladder then picks the largest height whose bits-per-pixel the budget can
+// feed. videoKbpsOverride short-circuits the budget for the corrective pass.
+function planFit({
+  file, targetMB, vTrack, aTrack, geo, resHeight, videoKbpsOverride,
+}) {
+  const {
+    srcW, srcH, srcDur, fpsTarget, outDur,
+  } = geo;
   const audioKbps = aTrack
     ? Math.max(32, Math.round((aTrack.bitrate || 128000) / 1000))
     : 0;
@@ -196,15 +213,14 @@ async function transcodeOnce({
   const videoKbps = videoKbpsOverride
     || Math.max(MIN_VIDEO_KBPS, Math.min(budget, sourceVideoKbps));
 
-  // Pick the largest resolution (capped by the user's choice) where the
-  // budget still gives a workable bits-per-pixel. Encoders can't hit very
-  // thin budgets at high resolutions — their quantizer floor makes them
-  // overshoot the target instead — and the quality would be mush anyway.
   const userMaxH = resHeight && resHeight < srcH ? resHeight : srcH;
   const chosenH = chooseHeight(videoKbps, srcW, srcH, fpsTarget, userMaxH);
-  const outH = even(chosenH);
-  const outW = even(srcW * (chosenH / srcH));
+  return { videoKbps, outH: even(chosenH), outW: even(srcW * (chosenH / srcH)) };
+}
 
+// Decoder config for the source codec, preferring hardware then falling back
+// to no-preference; throws if the browser can decode neither.
+async function configureDecoder(mp4, vTrack, srcW, srcH) {
   let decCfg = {
     codec: vTrack.codec,
     codedWidth: srcW,
@@ -221,7 +237,46 @@ async function transcodeOnce({
       throw new Error(`Browser cannot decode ${vTrack.codec}`);
     }
   }
+  return { decCfg, decLabel };
+}
 
+// The in-memory mp4 muxer, with an audio track only when the source has AAC.
+function buildMuxer(outW, outH, aTrack) {
+  const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target,
+    fastStart: 'in-memory',
+    firstTimestampBehavior: 'offset',
+    video: { codec: 'avc', width: outW, height: outH },
+    audio: aTrack ? {
+      codec: 'aac',
+      sampleRate: aTrack.audio.sample_rate,
+      numberOfChannels: aTrack.audio.channel_count,
+    } : undefined,
+  });
+  return { muxer, target };
+}
+
+// One end-to-end transcode pass. videoKbpsOverride skips the budget
+// computation (used by the corrective pass below).
+async function transcodeOnce({
+  file, targetMB, trimStart, trimEnd, resHeight, fpsOut, onProgress, videoKbpsOverride,
+}) {
+  const {
+    mp4, info, contiguousUpTo, tailStart,
+  } = await demuxHeader(file);
+  const { vTrack, aTrack, asc } = probeTracks(mp4, info);
+  const geo = computeTimeline(vTrack, file, trimStart, trimEnd, fpsOut);
+  const {
+    srcW, srcH, fpsSrc, fpsTarget, startUs, endUs,
+  } = geo;
+
+  const { videoKbps, outW, outH } = planFit({
+    file, targetMB, vTrack, aTrack, geo, resHeight, videoKbpsOverride,
+  });
+
+  const { decCfg, decLabel } = await configureDecoder(mp4, vTrack, srcW, srcH);
   const { cfg: encCfg, label: encLabel } = await pickEncoderConfig({
     width: outW,
     height: outH,
@@ -236,19 +291,7 @@ async function transcodeOnce({
     + `${Math.round(encCfg.bitrate / 1000)} kbps`,
   );
 
-  const { Muxer, ArrayBufferTarget } = window.Mp4Muxer;
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    fastStart: 'in-memory',
-    firstTimestampBehavior: 'offset',
-    video: { codec: 'avc', width: outW, height: outH },
-    audio: aTrack ? {
-      codec: 'aac',
-      sampleRate: aTrack.audio.sample_rate,
-      numberOfChannels: aTrack.audio.channel_count,
-    } : undefined,
-  });
+  const { muxer, target } = buildMuxer(outW, outH, aTrack);
 
   let fail = null;
   const failWith = (e) => { fail = fail || (e instanceof Error ? e : new Error(String(e))); };
@@ -355,7 +398,7 @@ async function transcodeOnce({
   mp4.start();
 
   const totalVideoSamples = vTrack.nb_samples;
-  offset = contiguousUpTo;
+  let offset = contiguousUpTo;
   while (offset < tailStart && processed < totalVideoSamples && !fail) {
     const end = Math.min(offset + READ_CHUNK, tailStart);
     // eslint-disable-next-line no-await-in-loop
