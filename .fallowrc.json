@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/index.js",
+    "src/setupProxy.js",
+    "scripts/copy-ffmpeg-assets.js",
+    "scripts/sw.template.js"
+  ],
+  "ignorePatterns": [
+    "build/**",
+    "public/ffmpeg/**",
+    "public/sw.js",
+    "Resources/**",
+    "src/**/*.test.js",
+    "src/**/__tests__/**"
+  ],
+  "ignoreDependencies": [
+    "@ffmpeg/ffmpeg",
+    "@ffmpeg/core-mt",
+    "mp4box",
+    "mp4-muxer",
+    "sass",
+    "eslint-config-airbnb",
+    "eslint-plugin-import",
+    "eslint-plugin-jsx-a11y",
+    "eslint-plugin-react",
+    "eslint-plugin-react-hooks"
+  ],
+  "ignoreUnresolvedImports": [
+    "**/ffmpeg/**"
+  ],
+  "ignoreExportsUsedInFile": true
+}

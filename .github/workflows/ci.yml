@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [master, limbo-v2]
+  pull_request:
+
+jobs:
+  build:
+    name: lint · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint
+        run: yarn lint
+
+      # react-scripts test runs once (non-watch) when CI is set. The openssl
+      # legacy provider is already baked into the package.json test script.
+      - name: Test
+        run: yarn test
+        env:
+          CI: true
+
+      # prebuild copies the ffmpeg/mp4box/mp4-muxer runtime out of
+      # node_modules and generates public/sw.js + .env.local.
+      - name: Build
+        run: yarn build
