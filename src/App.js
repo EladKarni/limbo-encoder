@@ -19,23 +19,13 @@ import { LogoMark } from './Components/Icons/Icons';
 import WarningNote from './Components/WarningNote/WarningNote';
 import { CODECS, CODEC_OPTIONS, MAX_INPUT_BYTES } from './utils/codecs';
 import {
-  effDur, bitrateKbps, estimateOutBytes, isTargetReachable, WASM_MAX_OUTPUT_BYTES,
-  plannedOutBytes, chooseHeight, overWasmCeiling, correctBitrate, TOLERANCE, ATTEMPTS,
+  effDur, bitrateKbps, estimateOutBytes, isTargetReachable,
+  WASM_MAX_OUTPUT_BYTES, plannedOutBytes, overWasmCeiling,
 } from './utils/fit';
 import { plannedPath, transcodeMp4 } from './utils/webcodecs';
-
-// The ffmpeg.wasm UMD runtime is loaded via a <script> tag in index.html
-// (webpack 4 cannot parse the library's dist, and self-hosting keeps it
-// same-origin under the COOP/COEP isolation headers).
-const { FFmpeg } = window.FFmpegWASM || {};
-const ffmpeg = FFmpeg ? new FFmpeg() : null;
-// The version segment comes from scripts/copy-ffmpeg-assets.js via .env.local;
-// versioned paths let the assets be cached as immutable.
-const FFMPEG_BASE = `${process.env.PUBLIC_URL || ''}/ffmpeg/${process.env.REACT_APP_FFMPEG_VERSION}`;
-
-// Input files are mounted here via WORKERFS: ffmpeg reads straight from the
-// File object on demand, so the input never has to fit in wasm memory.
-const MOUNT_DIR = '/work';
+import {
+  hasFfmpeg, loadEngine, onLog, parseTimeSecs, transcodeWasm, recover,
+} from './utils/ffmpegEncoder';
 
 let uid = 0;
 function genId() {
@@ -45,14 +35,6 @@ function genId() {
 
 function baseName(name) {
   return name.replace(/\.[^.]+$/, '');
-}
-
-async function safeFsOp(op) {
-  try {
-    await op();
-  } catch (err) {
-    // Nothing to clean up.
-  }
 }
 
 // Copy for files whose input size is over the app's cap. The cap is 4 GiB
@@ -133,18 +115,12 @@ function App() {
     showToast(`Encoding ${name} failed`, 'error');
   }, [updateFile, showToast]);
 
-  const loadEngine = useCallback(() => ffmpeg.load({
-    coreURL: `${FFMPEG_BASE}/ffmpeg-core.js`,
-    wasmURL: `${FFMPEG_BASE}/ffmpeg-core.wasm`,
-    workerURL: `${FFMPEG_BASE}/ffmpeg-core.worker.js`,
-  }), []);
-
   useEffect(() => {
-    if (!ffmpeg) {
+    if (!hasFfmpeg) {
       setEngine('error');
       return undefined;
     }
-    ffmpeg.on('log', ({ message }) => {
+    onLog((message) => {
       // eslint-disable-next-line no-console
       console.log(message);
       logTailRef.current.push(message);
@@ -152,9 +128,8 @@ function App() {
       const id = encodingIdRef.current;
       const dur = encodingDurRef.current;
       if (!id || !dur) return;
-      const m = /time=(\d+):(\d+):(\d+\.?\d*)/.exec(message);
-      if (!m) return;
-      const secs = (parseInt(m[1], 10) * 3600) + (parseInt(m[2], 10) * 60) + parseFloat(m[3]);
+      const secs = parseTimeSecs(message);
+      if (secs === null) return;
       updateFile(id, { progress: Math.min(100, Math.max(0, (secs / dur) * 100)) });
     });
     loadEngine()
@@ -166,7 +141,7 @@ function App() {
         showToast('Failed to load the encoder engine', 'error');
       });
     return () => clearTimeout(toastTimerRef.current);
-  }, [loadEngine, showToast, updateFile]);
+  }, [showToast, updateFile]);
 
   const loadMeta = useCallback((id, url, name) => {
     const probe = document.createElement('video');
@@ -324,86 +299,32 @@ function App() {
       }
     }
 
-    const outputName = `output-${id}.${codec.ext}`;
+    const srcH = f.height || 1080;
     let failed = false;
-
     try {
-      await ffmpeg.createDir(MOUNT_DIR);
-      const mounted = await ffmpeg.mount('WORKERFS', { files: [f.file] }, MOUNT_DIR);
-      if (!mounted) throw new Error('Could not mount the input file');
-      const inputPath = `${MOUNT_DIR}/${f.file.name}`;
-
-      const dur = effDur(f);
-      const trimmed = f.trimStart > 0.05 || (f.trimEnd > 0 && f.trimEnd < f.duration - 0.05);
-
-      // The wasm core pre-spawns a fixed pool of 32 pthread workers, and no
-      // more can start while exec blocks its worker. Auto threading (decoder
-      // ~cores + x264 ~1.5x cores) overflows the pool on many-core machines
-      // and deadlocks, so cap both decode and encode thread counts.
-      const threads = `${Math.min(8, Math.max(2, Math.floor((navigator.hardwareConcurrency || 4) / 2)))}`;
-
-      const srcW = f.width || 1920;
-      const srcH = f.height || 1080;
-      const fpsForBudget = f.fps !== 'Original' ? parseInt(f.fps, 10) : 30;
-      const userMaxH = f.res !== 'Original' ? parseInt(f.res, 10) : srcH;
-      const targetBytes = f.targetMB * 1e6;
-
-      // Encoders overshoot rather than honor bitrates below their quantizer
-      // ceiling, so pick an affordable resolution up front, verify the
-      // result size, and retry with a measured correction if it misses.
-      let bitrate = bitrateKbps(f);
-      let data = null;
-      for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
-        const height = chooseHeight(bitrate, srcW, srcH, fpsForBudget, userMaxH);
-
-        const args = ['-threads', threads];
-        if (trimmed && f.trimStart > 0) args.push('-ss', `${f.trimStart}`);
-        args.push('-i', inputPath);
-        if (trimmed) args.push('-t', `${dur}`);
-        // Always scale to even dimensions — yuv420p encoders reject odd sizes.
-        args.push('-vf', `scale=-2:min(${height}\\,trunc(ih/2)*2)`);
-        if (f.fps !== 'Original') args.push('-r', f.fps.replace(' fps', ''));
-        // Generic encoder thread cap first, so a codec's own -threads wins.
-        args.push('-threads', threads);
-        args.push(...codec.videoArgs);
-        args.push(
-          '-b:v', `${bitrate}k`,
-          '-minrate', `${bitrate}k`,
-          '-maxrate', `${bitrate}k`,
-          '-bufsize', `${bitrate * 2}k`,
-        );
-        args.push('-ac', '2', ...codec.audioArgs);
-        args.push(outputName);
-
-        // eslint-disable-next-line no-await-in-loop
-        const exitCode = await ffmpeg.exec(args);
-        if (exitCode !== 0) throw new Error(`ffmpeg exited with code ${exitCode}`);
-
-        // eslint-disable-next-line no-await-in-loop
-        data = await ffmpeg.readFile(outputName);
-        if (!data || data.length < 1024) throw new Error('Encoder produced no output');
-        if (data.length <= targetBytes * TOLERANCE) break;
-
-        if (attempt === ATTEMPTS - 1) {
-          throw new Error(
-            `Could not fit under ${f.targetMB} MB (got ${(data.length / 1e6).toFixed(1)} MB) `
-            + '— try a larger target, a shorter trim, or a lower frame rate',
-          );
-        }
-        bitrate = correctBitrate(bitrate, data.length, targetBytes);
-        // eslint-disable-next-line no-await-in-loop
-        await safeFsOp(() => ffmpeg.deleteFile(outputName));
-        updateFile(id, { progress: 0 });
-      }
-
-      const outBlob = new Blob([data.buffer], { type: codec.mime });
-      const outUrl = URL.createObjectURL(outBlob);
+      const outBlob = await transcodeWasm({
+        id,
+        file: f.file,
+        codec,
+        startBitrateKbps: bitrateKbps(f),
+        targetMB: f.targetMB,
+        targetBytes: f.targetMB * 1e6,
+        srcW: f.width || 1920,
+        srcH,
+        fpsForBudget: f.fps !== 'Original' ? parseInt(f.fps, 10) : 30,
+        userMaxH: f.res !== 'Original' ? parseInt(f.res, 10) : srcH,
+        durationSec: effDur(f),
+        trimStart: f.trimStart,
+        trimEnd: f.trimEnd,
+        fps: f.fps,
+        onRetry: () => updateFile(id, { progress: 0 }),
+      });
       updateFile(id, {
         status: 'done',
         progress: 100,
-        outUrl,
+        outUrl: URL.createObjectURL(outBlob),
         outBlob,
-        outBytes: data.length,
+        outBytes: outBlob.size,
         outMime: codec.mime,
         outExt: codec.ext,
       });
@@ -416,27 +337,23 @@ function App() {
       return false;
     } finally {
       if (failed) {
-        // A failed exec can leave the wasm core aborted, and any further FS
-        // call on it can crash the tab — a fresh worker is the only safe
-        // recovery (it also wipes the in-memory FS, so no cleanup needed).
+        // A failed exec can leave the wasm core aborted; recover() terminates
+        // and reloads a fresh worker (the only safe recovery — it also wipes
+        // the in-memory FS, so no cleanup needed). On success transcodeWasm
+        // already cleaned up.
         setEngine('loading');
         try {
-          ffmpeg.terminate();
-          await loadEngine();
+          await recover();
           setEngine('ready');
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error(err);
           setEngine('error');
         }
-      } else {
-        await safeFsOp(() => ffmpeg.deleteFile(outputName));
-        await safeFsOp(() => ffmpeg.unmount(MOUNT_DIR));
-        await safeFsOp(() => ffmpeg.deleteDir(MOUNT_DIR));
       }
       encodingIdRef.current = null;
     }
-  }, [loadEngine, showToast, updateFile, failEncode]);
+  }, [showToast, updateFile, failEncode]);
 
   const convert = async () => {
     if (!ready || isEncoding) return;
