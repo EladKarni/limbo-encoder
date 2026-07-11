@@ -16,17 +16,17 @@ body {
 }
 
 ::selection {
-  background: #3ddc97;
-  color: #06120c;
+  background: #4ee894;
+  color: #08130d;
 }
 
 a {
-  color: #3ddc97;
+  color: #4ee894;
   text-decoration: none;
 }
 
 a:hover {
-  color: #5cf0ae;
+  color: #6dfcab;
 }
 
 ::-webkit-scrollbar {

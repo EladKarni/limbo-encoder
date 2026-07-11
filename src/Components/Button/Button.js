@@ -6,7 +6,7 @@ import { BoltIcon } from '../Icons/Icons';
 function Button({ onClick, disabled, children }) {
   return (
     <button type="button" disabled={disabled} className={styles.btn} onClick={onClick}>
-      <BoltIcon color={disabled ? '#5b6472' : '#06120c'} />
+      <BoltIcon color={disabled ? '#5b6472' : '#08130d'} />
       {children}
     </button>
   );

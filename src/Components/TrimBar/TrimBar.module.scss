@@ -58,7 +58,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  background: rgba(61, 220, 151, 0.16);
+  background: rgba(78, 232, 148, 0.16);
   border-left: 2px solid $green;
   border-right: 2px solid $green;
 }
@@ -84,7 +84,7 @@
     background: $green;
     border: 2px solid $green-ink;
     cursor: ew-resize;
-    box-shadow: 0 0 0 1px $green, 0 4px 12px rgba(61, 220, 151, 0.4);
+    box-shadow: 0 0 0 1px $green, 0 4px 12px rgba(78, 232, 148, 0.4);
   }
 
   &::-moz-range-thumb {
@@ -107,7 +107,7 @@
 
   &:focus-visible::-webkit-slider-thumb {
     background: $green-bright;
-    box-shadow: 0 0 0 2px $text, 0 4px 12px rgba(61, 220, 151, 0.4);
+    box-shadow: 0 0 0 2px $text, 0 4px 12px rgba(78, 232, 148, 0.4);
   }
 
   &:focus-visible::-moz-range-thumb {

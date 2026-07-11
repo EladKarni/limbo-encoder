@@ -15,13 +15,13 @@ function DoneCard({
       <div className={styles.frame}>
         <video key={url} muted controls playsInline src={url} className={styles.video} />
         <div className={styles.badge}>
-          <CheckIcon size={14} color="#06120c" strokeWidth={3} />
+          <CheckIcon size={14} color="#08130d" strokeWidth={3} />
           {`DONE · ${fmtBytes(outBytes)}`}
         </div>
       </div>
       <div className={styles.actions}>
         <button type="button" className={styles.download} onClick={onDownload}>
-          <DownloadIcon color="#06120c" />
+          <DownloadIcon color="#08130d" />
           Download
         </button>
         <button type="button" className={styles.share} onClick={onShare}>

@@ -28,7 +28,7 @@ function EstimateCard({ origBytes, estBytes }) {
           <div className={styles.sizeLabel}>Original</div>
           <div className={styles.sizeValue}>{fmtBytes(origBytes)}</div>
         </div>
-        <ArrowRightIcon color="#3ddc97" />
+        <ArrowRightIcon color="#4ee894" />
         <div className={styles.target}>
           <div className={styles.sizeLabel}>Target</div>
           <div className={styles.targetValue}>{fmtBytes(estBytes)}</div>

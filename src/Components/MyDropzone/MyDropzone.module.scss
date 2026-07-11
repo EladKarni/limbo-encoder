@@ -24,7 +24,7 @@
 
   &:focus-visible {
     border-color: $green;
-    box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.25);
+    box-shadow: 0 0 0 3px rgba(78, 232, 148, 0.25);
   }
 
   .icon {
@@ -78,6 +78,6 @@
 
 .dzActive {
   composes: dropzone;
-  background: rgba(61, 220, 151, 0.07);
+  background: rgba(78, 232, 148, 0.07);
   border-color: $green;
 }

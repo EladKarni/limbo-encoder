@@ -26,17 +26,19 @@ function MyDropzone({ onFiles }) {
     >
       <input {...getInputProps()} />
       <div className={styles.icon}>
-        <UploadIcon color="#3ddc97" />
+        <UploadIcon color="#4ee894" />
       </div>
       <div className={styles.headline}>Drop a video to begin</div>
       <div className={styles.sub}>
         Drag &amp; drop, or click to browse. MP4, MOV, WebM, MKV &mdash; batch is supported.
       </div>
       <div className={styles.cta}>
-        <PlusIcon color="#06120c" />
+        <PlusIcon color="#08130d" />
         Choose video
       </div>
       <div className={styles.limit}>
+        {/* MAX_INPUT_BYTES is 4 GiB; /1e9 then floor renders it as the round
+            decimal "4 GB" the user expects (matches App.oversizedMsg). */}
         {`Files up to ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB. Larger videos? Trim them into parts first.`}
       </div>
     </div>

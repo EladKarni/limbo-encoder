@@ -6,7 +6,7 @@ import { PlusIcon, CloseIcon } from '../Icons/Icons';
 import { fmtBytes } from '../../utils/format';
 
 const STATUS_COLORS = {
-  done: '#3ddc97',
+  done: '#4ee894',
   encoding: '#f4c04a',
   ready: '#5b6472',
   error: '#f4644a',
@@ -50,7 +50,7 @@ function FileChips({
         </div>
       ))}
       <button type="button" className={styles.add} onClick={onAdd}>
-        <PlusIcon size={15} color="#3ddc97" />
+        <PlusIcon size={15} color="#4ee894" />
         Add
       </button>
     </div>
