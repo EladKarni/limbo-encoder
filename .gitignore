@@ -29,3 +29,6 @@ yarn-error.log*
 
 # fallow local snapshots (trend tracking, not shared)
 /.fallow
+
+# Local Netlify folder
+.netlify

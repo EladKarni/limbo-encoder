@@ -6,7 +6,7 @@ service worker). Each needs a decision or an external precondition — none are
 blockers. Design rationale for the SW itself lives in the comments of
 `scripts/sw.template.js`.
 
-## 1. Verify Netlify compresses the wasm (diagnostic — blocked on deploy)
+## 1. Verify Netlify compresses the wasm — RESOLVED (2026-07-12)
 
 First visits download `ffmpeg-core.wasm` at full size if Netlify doesn't
 brotli/gzip `application/wasm`. Measured locally: **31.2 MB raw, 9.8 MB
@@ -14,18 +14,23 @@ gzip -9** (brotli should land ~8–9 MB) — a ~3× first-visit cut if it turns
 out uncompressed. Only affects the first visit and dependency version bumps;
 every other visit is served from Cache Storage.
 
-Could not be checked on 2026-07-11: `limbo-encoder.netlify.app` (the URL in
-the og tags) returned 404 — nothing deployed there yet. Once live, run:
+**Verified live on 2026-07-12** against `limbo-encoder.netlify.app`: Netlify
+brotli-compresses the wasm automatically. The core serves at
+`content-encoding: br`, **9.2 MB over the wire** (from 32.7 MB raw) with
+`content-type: application/wasm`. Nothing to do — this is working as hoped.
+
+Note when checking: you MUST send `Accept-Encoding` or Netlify (correctly)
+returns the asset uncompressed — a request without that header shows no
+`content-encoding` and looks like a regression when it isn't.
 
 ```sh
+# The core segment is core-<@ffmpeg/ffmpeg ver>-<@ffmpeg/core-mt ver>; read the
+# exact path from the deployed index.html rather than guessing it.
+SEG=$(curl -s https://limbo-encoder.netlify.app/ | grep -oE '/ffmpeg/core-[^/"]+' | head -1)
 curl -sI -H 'Accept-Encoding: br, gzip' \
-  "https://<site>/ffmpeg/$(grep -o 'FFMPEG_VERSION=.*' .env.local | cut -d= -f2)/ffmpeg-core.wasm" \
-  | grep -i content-encoding
+  "https://limbo-encoder.netlify.app${SEG}/ffmpeg-core.wasm" | grep -i content-encoding
+# -> content-encoding: br
 ```
-
-`content-encoding: br` (or `gzip`) → done, nothing to do. No header → raise
-with Netlify config/support; static-asset brotli is usually automatic, so a
-missing header likely means the content-type mapping needs fixing.
 
 ## 2. Defer the eager `loadEngine()` (UX tradeoff — NOT approved, decide first)
 
