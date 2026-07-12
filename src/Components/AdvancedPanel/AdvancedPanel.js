@@ -51,7 +51,7 @@ function AdvancedPanel({
           <span className={styles.toggleIcon}>
             <GearIcon />
           </span>
-          Advanced settings
+          Manual controls
         </span>
         <span className={open ? styles.chevronOpen : styles.chevron}>
           <ChevronIcon />

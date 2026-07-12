@@ -9,6 +9,7 @@ import KofiWidget from './Components/KofiWidget/KofiWidget';
 import { CODECS, CODEC_OPTIONS } from './utils/codecs';
 import {
   bitrateKbps, estimateOutBytes, overWasmCeiling, videoQuality,
+  derivePreset, outputGeometry,
 } from './utils/fit';
 import { plannedPath } from './utils/webcodecs';
 import { ACCEPT_VIDEO } from './utils/presets';
@@ -56,6 +57,51 @@ function App() {
   const activeBlocker = active ? encodeBlocker(active) : '';
   const convertHint = activeBlocker || null;
 
+  // Simple-mode preset state for the active file. The file is "custom" when its
+  // res/fps no longer match what its stored priority/quality would solve to —
+  // i.e. the user hand-edited a manual dropdown. Balance always solves to
+  // Original/Original, so a fresh file starts non-custom.
+  const presetSolved = active
+    ? derivePreset(active, active.priority, active.quality)
+    : null;
+  const isCustomPreset = Boolean(active) && presetSolved !== null
+    && (presetSolved.res !== (active.res || 'Original')
+      || presetSolved.fps !== (active.fps || 'Original'));
+  // The resolution/fps the preset (or a manual edit) resolved to, shown under
+  // the readout. Guarded on probed geometry so we don't show outputGeometry's
+  // 1080p/30 fallback before the source metadata has loaded.
+  const geo = active && active.width && active.height ? outputGeometry(active) : null;
+  const geometryLabel = geo ? `${geo.h}p · ${geo.fps} fps` : null;
+
+  // Selecting a priority/quality re-solves res/fps for the current budget and
+  // writes all four fields at once, so the manual dropdowns reflect the preset.
+  const applyPreset = (patch) => {
+    if (!active) return;
+    const nextPriority = patch.priority || active.priority;
+    const nextQuality = patch.quality || active.quality;
+    const { res, fps } = derivePreset(active, nextPriority, nextQuality);
+    updateFile(active.id, {
+      priority: nextPriority, quality: nextQuality, res, fps,
+    });
+  };
+
+  // Changing the target changes the bit budget, so a live (non-custom) preset
+  // must re-solve its res/fps for the new budget. Solve against the merged file
+  // so the new targetMB is in effect. A custom or balance file is left alone
+  // (balance is already Original/Original; custom means the user took over).
+  const applyTarget = (patch) => {
+    if (!active) return;
+    const merged = { ...active, ...patch };
+    if (active.priority !== 'balance' && !isCustomPreset) {
+      Object.assign(merged, derivePreset(merged, merged.priority, merged.quality));
+    }
+    updateFile(active.id, {
+      ...patch,
+      ...(merged.res !== active.res ? { res: merged.res } : {}),
+      ...(merged.fps !== active.fps ? { fps: merged.fps } : {}),
+    });
+  };
+
   const openPicker = () => pickerRef.current && pickerRef.current.click();
   const runConvert = () => {
     if (ready && !isEncoding) convert(files, active);
@@ -98,11 +144,15 @@ function App() {
               estBytes={estimateOutBytes(active)}
               bitrateLabel={br > 0 ? `${br.toLocaleString()} kbps` : '—'}
               quality={quality}
+              presetCustom={isCustomPreset}
+              geometryLabel={geometryLabel}
               convertLabel={files.length > 1 ? `Convert all (${readyCount})` : 'Convert'}
               canConvert={canConvert}
               convertHint={files.length > 1 ? null : convertHint}
               ready={ready}
               onUpdate={updateFile}
+              onTarget={applyTarget}
+              onPreset={applyPreset}
               onToggleAdv={() => setShowAdv((s) => !s)}
               onConvert={runConvert}
             />

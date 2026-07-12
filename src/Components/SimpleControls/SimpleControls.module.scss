@@ -1,0 +1,137 @@
+@import '../../styles/variables';
+@import '../../styles/mixins';
+
+.card {
+  @include panel-card;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: $muted;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  color: $muted;
+  margin-bottom: 7px;
+  font-weight: 600;
+}
+
+// A 3-way segmented control: equal-width buttons sharing one inset track.
+.segmented {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 6px;
+  background: $panel-inset;
+  border: 1px solid $border;
+  border-radius: 11px;
+  padding: 5px;
+}
+
+.seg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  color: $muted-bright;
+  font-family: $sans;
+  transition: all 0.15s;
+
+  &:hover {
+    background: $panel-active;
+  }
+}
+
+.segActive {
+  composes: seg;
+  background: $panel-active;
+  border-color: $green;
+  color: $text;
+}
+
+.segLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.segSub {
+  font-size: 10px;
+  color: $muted;
+  font-family: $mono;
+  white-space: nowrap;
+}
+
+.explain {
+  margin: -2px 0 14px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: $dim;
+}
+
+.readout {
+  border-top: 1px solid $border;
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.readoutHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.readoutLabel {
+  font-size: 12px;
+  color: $muted;
+}
+
+.readoutValue {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: $mono;
+  color: $muted-bright;
+}
+
+// The quality band bar — same visual language as the manual panel's readout.
+.bar {
+  height: 5px;
+  border-radius: 3px;
+  background: $panel-inset;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.qPoor .fill { width: 22%; background: $red; }
+.qFair .fill { width: 50%; background: $amber; }
+.qGood .fill { width: 78%; background: $green; }
+.qExcellent .fill { width: 100%; background: $green-bright; }
+
+.geometry {
+  margin-top: 8px;
+  font-size: 11.5px;
+  font-family: $mono;
+  color: $dim;
+}

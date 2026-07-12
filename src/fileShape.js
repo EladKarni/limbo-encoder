@@ -17,6 +17,8 @@ const fileShape = PropTypes.shape({
   res: PropTypes.string,
   codec: PropTypes.string,
   fps: PropTypes.string,
+  priority: PropTypes.oneOf(['balance', 'quality', 'smoothness']),
+  quality: PropTypes.oneOf(['low', 'medium', 'high']),
   status: PropTypes.oneOf(['ready', 'encoding', 'done', 'error']).isRequired,
   progress: PropTypes.number,
   outUrl: PropTypes.string,

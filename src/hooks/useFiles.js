@@ -31,6 +31,10 @@ function makeFileRecord(file) {
     res: 'Original',
     codec: CODEC_OPTIONS[0],
     fps: 'Original',
+    // Simple-mode preset: 'balance' is today's automatic behavior (res/fps stay
+    // Original). Selecting a priority/quality solves res/fps via derivePreset.
+    priority: 'balance',
+    quality: 'medium',
     status: 'ready',
     progress: 0,
     outUrl: null,

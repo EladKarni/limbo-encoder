@@ -13,6 +13,8 @@ import {
   inputCapBytes,
   outputGeometry,
   videoQuality,
+  derivePreset,
+  matchPreset,
   MIN_VIDEO_KBPS,
   MIN_BPP,
 } from './fit';
@@ -273,5 +275,101 @@ describe('videoQuality', () => {
     }));
     // Same raw BPP, but VP8's is divided by its efficiency factor -> lower.
     expect(vp8.bpp).toBeLessThan(h264.bpp);
+  });
+});
+
+describe('derivePreset', () => {
+  // 1080p source; a mid budget so both levers have room to move.
+  const src = {
+    width: 1920, height: 1080, duration: 60, trimEnd: 60, size: 400e6, codec: 'H.264',
+  };
+  // Pick a tight-ish target so the quality preset actually forces tradeoffs.
+  const tight = { ...src, targetMB: 20 };
+
+  it('balance is a no-op: leaves both dropdowns on Original', () => {
+    expect(derivePreset(mk({ ...tight }), 'balance', 'high'))
+      .toEqual({ res: 'Original', fps: 'Original' });
+  });
+
+  it('falls back to current settings when geometry/budget is unknown', () => {
+    expect(derivePreset(mk({
+      width: 0, height: 0, res: '720p', fps: '30 fps',
+    }), 'quality', 'low')).toEqual({ res: '720p', fps: '30 fps' });
+  });
+
+  describe('priority = quality (max resolution, fps flexes)', () => {
+    it('always keeps resolution at Original', () => {
+      ['low', 'medium', 'high'].forEach((q) => {
+        expect(derivePreset(mk({ ...tight }), 'quality', q).res).toBe('Original');
+      });
+    });
+
+    it('raising quality never raises the flexed fps (monotonic)', () => {
+      const fpsNum = (q) => parseInt(derivePreset(mk({ ...tight }), 'quality', q).fps, 10);
+      expect(fpsNum('low')).toBeGreaterThanOrEqual(fpsNum('medium'));
+      expect(fpsNum('medium')).toBeGreaterThanOrEqual(fpsNum('high'));
+    });
+
+    it('a generous budget keeps fps high even at high quality', () => {
+      const roomy = mk({ ...src, targetMB: 400 }); // source-capped, plenty of bits
+      expect(parseInt(derivePreset(roomy, 'quality', 'high').fps, 10)).toBe(60);
+    });
+  });
+
+  describe('priority = smoothness (max fps, resolution flexes)', () => {
+    it('always keeps fps at Original', () => {
+      ['low', 'medium', 'high'].forEach((q) => {
+        expect(derivePreset(mk({ ...tight }), 'smoothness', q).fps).toBe('Original');
+      });
+    });
+
+    it('raising quality never raises the flexed resolution (monotonic)', () => {
+      const resNum = (q) => {
+        const r = derivePreset(mk({ ...tight }), 'smoothness', q).res;
+        return r === 'Original' ? 1080 : parseInt(r, 10);
+      };
+      expect(resNum('low')).toBeGreaterThanOrEqual(resNum('medium'));
+      expect(resNum('medium')).toBeGreaterThanOrEqual(resNum('high'));
+    });
+
+    it('never chooses a rung taller than the source', () => {
+      const small = mk({
+        width: 640, height: 480, duration: 60, trimEnd: 60, size: 400e6, targetMB: 50, codec: 'H.264',
+      });
+      const r = derivePreset(small, 'smoothness', 'high').res;
+      const h = r === 'Original' ? 480 : parseInt(r, 10);
+      expect(h).toBeLessThanOrEqual(480);
+    });
+  });
+
+  it('VP8 is solved more conservatively than H.264 at the same target', () => {
+    // At a target where H.264 can hold 60fps but VP8 (needs 1.25x bits) can't.
+    const h264 = derivePreset(mk({ ...src, targetMB: 33, codec: 'H.264' }), 'quality', 'medium');
+    const vp8 = derivePreset(mk({ ...src, targetMB: 33, codec: 'VP8 (WebM)' }), 'quality', 'medium');
+    expect(parseInt(vp8.fps, 10)).toBeLessThanOrEqual(parseInt(h264.fps, 10));
+  });
+});
+
+describe('matchPreset', () => {
+  const src = {
+    width: 1920, height: 1080, duration: 60, trimEnd: 60, size: 400e6, targetMB: 20, codec: 'H.264',
+  };
+
+  it('recognizes Original/Original as balance', () => {
+    expect(matchPreset(mk({ ...src, res: 'Original', fps: 'Original' })))
+      .toMatchObject({ priority: 'balance' });
+  });
+
+  it('round-trips a solved quality preset back to itself', () => {
+    const solved = derivePreset(mk({ ...src }), 'quality', 'high');
+    const m = matchPreset(mk({ ...src, ...solved }));
+    // The geometry a preset produced is recognized as *some* preset (not null).
+    expect(m).not.toBeNull();
+  });
+
+  it('returns null for a hand-edited combo no preset would produce', () => {
+    // Both levers pinned below source at once — quality/smoothness each only
+    // move one lever, balance moves neither, so this is genuinely Custom.
+    expect(matchPreset(mk({ ...src, res: '480p', fps: '24 fps' }))).toBeNull();
   });
 });

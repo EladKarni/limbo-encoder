@@ -151,6 +151,22 @@ bits over fewer pixels/frames and *raises* the quality band; VP8 is judged
 harder than H.264 (needs ~1.25× the bits). It's the one number in the panel
 that responds to those choices — the raw bitrate stays as a secondary detail.
 
+**Simple-mode presets** sit on top of the manual res/codec/fps dropdowns for
+users who want some control without the technical lingo (`SimpleControls`). Two
+plain-language toggles — a **priority** (Quality / Balanced / Smoothness) and a
+**quality** target (Low / Medium / High) — are solved by `derivePreset` (fit.js)
+into the same `res`/`fps` strings the dropdowns emit, so the encode path needs
+no changes (both engines already treat those as caps). Because the budget is
+fixed, priority says which lever to keep maxed and quality sets the target BPP
+the *other* lever flexes to hit: **Quality** pins resolution to source and drops
+fps to fund a sharper picture; **Smoothness** pins fps and drops resolution;
+**Balanced** is the historical no-op (both stay `Original`, the ladder decides).
+Changing the target re-solves a live preset for the new budget. Hand-editing a
+manual dropdown puts the file in a **Custom** state (its res/fps no longer match
+what its stored preset would produce, detected by re-running `derivePreset`);
+re-selecting any preset takes over again. `TARGET_BPP` anchors the quality
+presets to `BPP_BANDS` so the preset name and the live readout stay consistent.
+
 Progress is parsed from ffmpeg's own `time=` log lines against the effective
 (trimmed) duration on the wasm path, and from processed-sample counts on the
 WebCodecs path. Neither engine's built-in progress event is trusted (see

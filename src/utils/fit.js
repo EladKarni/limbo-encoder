@@ -58,6 +58,24 @@ export const BPP_BANDS = [
 // fit-to-limit compressor operates in, so this is slightly conservative.
 export const CODEC_BPP_FACTOR = { 'H.264': 1, 'VP8 (WebM)': 1.25 };
 
+// --- Simple-mode presets ---------------------------------------------------
+// The friendly layer over the res/codec/fps dropdowns: a priority (what to keep
+// high when the fixed budget forces a tradeoff) and a quality target (how many
+// bits-per-pixel to aim for). derivePreset() solves these into the res/fps the
+// dropdowns already understand. See docs/ARCHITECTURE.md § Size-fitting.
+
+// The bits-per-pixel-per-frame each quality preset aims for, H.264-referenced
+// (VP8 is solved a touch more conservatively via CODEC_BPP_FACTOR). Anchored to
+// BPP_BANDS: Low sits in Fair, Medium at the Good floor, High mid-Good — so the
+// preset name and the live quality readout stay consistent.
+export const TARGET_BPP = { low: 0.05, medium: 0.10, high: 0.16 };
+
+// The standard fps rungs a preset may pick, high → low. 'Original' means "the
+// source fps" (capped at 60 for the budget, matching outputGeometry's default).
+export const FPS_RUNGS = [60, 30, 24];
+// The resolution ladder a preset may pick, tall → short (mirrors chooseHeight).
+export const RES_RUNGS = [1080, 720, 480, 360];
+
 // Effective (trimmed) duration of a clip, in seconds.
 export function effDur(f) {
   const d = (f.trimEnd || f.duration) - (f.trimStart || 0);
@@ -172,6 +190,73 @@ export function videoQuality(f) {
   const bpp = (kbps * 1000) / (w * h * fps) / factor;
   const band = BPP_BANDS.find((b) => bpp < b.max) || BPP_BANDS[BPP_BANDS.length - 1];
   return { bpp, label: band.label, hint: band.hint };
+}
+
+// Solve a simple-mode preset into the { res, fps } strings the advanced
+// dropdowns use, given the file's fixed bit budget and source geometry. The
+// budget is fixed by the target size, so on a tight budget sharpness and
+// smoothness trade off; the priority says which one to keep maxed and let the
+// other flex to hit the quality preset's target bits-per-pixel.
+//
+//   'balance'    → today's automatic behavior: leave both at 'Original' and let
+//                  the engine's chooseHeight ladder decide.
+//   'quality'    → pin resolution to source; pick the HIGHEST fps rung that
+//                  still meets the target BPP (low quality keeps fps high; high
+//                  quality cuts fps to fund the sharper picture).
+//   'smoothness' → pin fps to source; pick the HIGHEST resolution rung that
+//                  still meets the target BPP.
+//
+// Returns { res, fps } as the same 'Original' / '720p' / '30 fps' strings the
+// dropdowns emit, so the caller just writes them onto the record. Falls back to
+// the current settings when the budget/geometry isn't known yet.
+export function derivePreset(f, priority, quality) {
+  if (priority === 'balance') return { res: 'Original', fps: 'Original' };
+  const kbps = bitrateKbps(f);
+  if (!kbps || !f.width || !f.height) return { res: f.res, fps: f.fps };
+
+  const srcH = f.height;
+  const srcW = f.width;
+  const srcFps = Math.min(FPS_RUNGS[0], 60); // source fps unknown → treat as 60 cap
+  const factor = CODEC_BPP_FACTOR[f.codec] || 1;
+  const targetBpp = (TARGET_BPP[quality] || TARGET_BPP.medium) * factor;
+  const bppAt = (w, h, fps) => (kbps * 1000) / (w * h * fps);
+
+  if (priority === 'quality') {
+    // Resolution maxed (source); find the highest fps that still hits target.
+    const fps = FPS_RUNGS.find((r) => bppAt(srcW, srcH, r) >= targetBpp)
+      || FPS_RUNGS[FPS_RUNGS.length - 1];
+    return { res: 'Original', fps: `${fps} fps` };
+  }
+
+  // priority === 'smoothness': fps maxed (source); find the tallest rung ≤ src
+  // whose pixel rate at the source fps still hits the target BPP.
+  const rungs = RES_RUNGS.filter((h) => h <= srcH);
+  if (!rungs.length) rungs.push(RES_RUNGS[RES_RUNGS.length - 1]);
+  const h = rungs.find((rung) => {
+    const w = Math.round(srcW * (rung / srcH));
+    return bppAt(w, rung, srcFps) >= targetBpp;
+  }) || rungs[rungs.length - 1];
+  const res = h >= srcH ? 'Original' : `${h}p`;
+  return { res, fps: 'Original' };
+}
+
+// Which preset (if any) the current res/fps match — so the UI can highlight the
+// active priority/quality, or show 'Custom' when the user has hand-edited the
+// dropdowns to something no preset would produce. Returns { priority, quality }
+// or null. Checks 'balance' first (its Original/Original is also what an
+// unsolvable quality/smoothness pick falls back to).
+export function matchPreset(f) {
+  const PRIORITIES = ['balance', 'quality', 'smoothness'];
+  const QUALITIES = ['low', 'medium', 'high'];
+  for (let p = 0; p < PRIORITIES.length; p += 1) {
+    for (let q = 0; q < QUALITIES.length; q += 1) {
+      const d = derivePreset(f, PRIORITIES[p], QUALITIES[q]);
+      if (d.res === (f.res || 'Original') && d.fps === (f.fps || 'Original')) {
+        return { priority: PRIORITIES[p], quality: QUALITIES[q] };
+      }
+    }
+  }
+  return null;
 }
 
 // Rough output size estimate, in bytes.

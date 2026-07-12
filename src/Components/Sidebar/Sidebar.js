@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import styles from './Sidebar.module.scss';
 import Selector from '../Selector/Selector';
 import EstimateCard from '../EstimateCard/EstimateCard';
+import SimpleControls from '../SimpleControls/SimpleControls';
 import AdvancedPanel from '../AdvancedPanel/AdvancedPanel';
 import Button from '../Button/Button';
 import WarningNote from '../WarningNote/WarningNote';
@@ -15,8 +16,8 @@ import fileShape from '../../fileShape';
 // onUpdate, and convert/toggle are callbacks.
 function Sidebar({
   active, isEncoding, showAdv, codecOptions, codecHint, estBytes, bitrateLabel,
-  quality, convertLabel, canConvert, convertHint, ready, onUpdate, onToggleAdv,
-  onConvert,
+  quality, presetCustom, geometryLabel, convertLabel, canConvert, convertHint,
+  ready, onUpdate, onTarget, onPreset, onToggleAdv, onConvert,
 }) {
   return (
     <aside
@@ -26,13 +27,22 @@ function Sidebar({
       <Selector
         platform={active.platform}
         targetMB={active.targetMB}
-        onSelect={(p) => onUpdate(active.id, { targetMB: p.mb, platform: p.id })}
-        onCustom={(mb) => onUpdate(active.id, {
+        onSelect={(p) => onTarget({ targetMB: p.mb, platform: p.id })}
+        onCustom={(mb) => onTarget({
           targetMB: Number.isNaN(mb) ? 0 : mb,
           platform: 'custom',
         })}
       />
       <EstimateCard origBytes={active.size} estBytes={estBytes} />
+      <SimpleControls
+        priority={active.priority}
+        quality={active.quality}
+        custom={presetCustom}
+        qualityBand={quality}
+        geometryLabel={geometryLabel}
+        onPriority={(priority) => onPreset({ priority })}
+        onQuality={(q) => onPreset({ quality: q })}
+      />
       <AdvancedPanel
         open={showAdv}
         onToggle={onToggleAdv}
@@ -69,11 +79,15 @@ Sidebar.propTypes = {
     label: PropTypes.string,
     hint: PropTypes.string,
   }),
+  presetCustom: PropTypes.bool.isRequired,
+  geometryLabel: PropTypes.string,
   convertLabel: PropTypes.string.isRequired,
   canConvert: PropTypes.bool.isRequired,
   convertHint: PropTypes.string,
   ready: PropTypes.bool.isRequired,
   onUpdate: PropTypes.func.isRequired,
+  onTarget: PropTypes.func.isRequired,
+  onPreset: PropTypes.func.isRequired,
   onToggleAdv: PropTypes.func.isRequired,
   onConvert: PropTypes.func.isRequired,
 };
@@ -82,6 +96,7 @@ Sidebar.defaultProps = {
   codecHint: null,
   convertHint: null,
   quality: null,
+  geometryLabel: null,
 };
 
 export default Sidebar;
