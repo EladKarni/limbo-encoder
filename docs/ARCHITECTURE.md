@@ -140,6 +140,17 @@ treated as a request, never a guarantee:
    lower ladder rung — up to 3 attempts. If it still can't fit, the encode
    *fails honestly* (error card) rather than delivering an oversized file.
 
+The bit budget above is a fixed pool set by *target size ÷ duration* — the
+advanced-panel resolution/codec/fps controls do **not** change it (if they did,
+the output could exceed the target). They change how the pool is *spent*. So
+the panel surfaces that tradeoff directly: `videoQuality` (fit.js) reports the
+planned encode's **bits-per-pixel-per-frame** — `bitrate / (w × h × fps)`,
+normalized to an H.264 baseline via `CODEC_BPP_FACTOR` — banded (Poor / Fair /
+Good / Excellent) against `BPP_BANDS`. Lower resolution or fps spreads the same
+bits over fewer pixels/frames and *raises* the quality band; VP8 is judged
+harder than H.264 (needs ~1.25× the bits). It's the one number in the panel
+that responds to those choices — the raw bitrate stays as a secondary detail.
+
 Progress is parsed from ffmpeg's own `time=` log lines against the effective
 (trimmed) duration on the wasm path, and from processed-sample counts on the
 WebCodecs path. Neither engine's built-in progress event is trusted (see
@@ -241,20 +252,32 @@ is also what makes the "100% local · nothing uploaded" pill true.
 
 ### Input and output limits
 
-Input files are capped at **4 GB** (`MAX_INPUT_BYTES`) — an app-chosen safety
-cap, enforced at file-add time (immediate toast) and again at encode time.
-It is *not* a platform memory limit: inputs never sit in memory whole on
-either path (WORKERFS mount on the wasm path, 16 MB slices on the WebCodecs
-path — WORKERFS has handled 13+ GB inputs in the wild). The earlier
-"browsers cap WebAssembly apps at 4 GB" attribution was wrong twice over:
-4 GiB is wasm32's address space, not a browser policy, and Chrome 133 /
-Firefox 134 shipped Memory64 in early 2025 so browsers no longer cap wasm at
-4 GB at all (Safari still lacks Memory64 as of mid-2026). Neither fact binds
-here anyway — the bundled core's heap is fixed at 1 GiB regardless, and
-lifting the input cap on the WebCodecs path is possible but deliberately out
-of scope. (OBS recordings encoded with NVENC AV1 are handled by the
-WebCodecs path; if WebCodecs is unavailable, the wasm path fails with a
-decoder error shown in the error card.)
+Input files are capped by an app-chosen safety bound — **path-dependent**,
+because the two paths have genuinely different headroom. The cap is resolved
+by `inputCapBytes(path)` (fit.js) and enforced at file-add time (immediate
+toast) and again at encode time; both sites route through it, so a file's
+add-time verdict and its encode-time verdict always agree (`plannedPath`
+reads a raw dropped File's default codec as H.264, matching a fresh record).
+
+- **WebCodecs fast path: `FAST_MAX_INPUT_BYTES` (64 GB).** The source is read
+  in 16 MB slices and never sits in memory whole, so this path isn't
+  MEMFS-bound; it earns a high ceiling.
+- **wasm path: `WASM_MAX_INPUT_BYTES` (4 GB).** The conservative guardrail —
+  a sanity bound on what a wasm-engine job should attempt (though even here
+  WORKERFS mounts the File and reads it on demand; it has handled 13+ GB
+  inputs in the wild).
+
+Neither cap is a *platform memory limit*. The earlier "browsers cap
+WebAssembly apps at 4 GB" attribution was wrong twice over: 4 GiB is wasm32's
+address space, not a browser policy, and Chrome 133 / Firefox 134 shipped
+Memory64 in early 2025 so browsers no longer cap wasm at 4 GB at all (Safari
+still lacks Memory64 as of mid-2026). The bundled core's heap is fixed at
+1 GiB regardless. A file routed to the fast path on a WebCodecs-capable
+browser gets the 64 GB ceiling; the *same* file on a browser without
+WebCodecs routes to wasm and correctly falls back to the 4 GB cap, because it
+really will run on the wasm engine there. (OBS recordings encoded with NVENC
+AV1 are handled by the WebCodecs path; if WebCodecs is unavailable, the wasm
+path fails with a decoder error shown in the error card.)
 
 **Output size is the real wasm-path boundary.** The encoder's output
 accumulates in MEMFS, whose backing Uint8Array grows in 1.125× steps; once a

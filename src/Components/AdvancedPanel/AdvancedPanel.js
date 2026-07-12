@@ -35,8 +35,14 @@ Row.propTypes = {
   onChange: PropTypes.func.isRequired,
 };
 
+// Map a quality band label to a modifier class so the readout is colour-coded.
+const QUALITY_CLASS = {
+  Poor: 'qPoor', Fair: 'qFair', Good: 'qGood', Excellent: 'qExcellent',
+};
+
 function AdvancedPanel({
-  open, onToggle, res, codec, fps, codecOptions, codecHint, onChange, bitrateLabel,
+  open, onToggle, res, codec, fps, codecOptions, codecHint, onChange,
+  bitrateLabel, quality,
 }) {
   return (
     <div className={styles.card}>
@@ -73,8 +79,20 @@ function AdvancedPanel({
             onChange={(v) => onChange({ fps: v })}
           />
           <div className={styles.bitrate}>
-            <span className={styles.bitrateLabel}>Video bitrate</span>
-            <span className={styles.bitrateValue}>{bitrateLabel}</span>
+            <span className={styles.bitrateLabel}>Estimated quality</span>
+            <span className={styles.bitrateValue}>
+              {quality ? quality.label : '—'}
+            </span>
+          </div>
+          {quality && (
+            <div className={`${styles.qualityBar} ${styles[QUALITY_CLASS[quality.label]]}`}>
+              <span className={styles.qualityFill} />
+            </div>
+          )}
+          {quality && <div className={styles.hint}>{quality.hint}</div>}
+          <div className={styles.bitrateSub}>
+            <span>Video bitrate</span>
+            <span>{bitrateLabel}</span>
           </div>
         </div>
       )}
@@ -92,10 +110,16 @@ AdvancedPanel.propTypes = {
   codecHint: PropTypes.string,
   onChange: PropTypes.func.isRequired,
   bitrateLabel: PropTypes.string.isRequired,
+  quality: PropTypes.shape({
+    bpp: PropTypes.number,
+    label: PropTypes.string,
+    hint: PropTypes.string,
+  }),
 };
 
 AdvancedPanel.defaultProps = {
   codecHint: null,
+  quality: null,
 };
 
 export default AdvancedPanel;

@@ -12,6 +12,22 @@ beforeAll(() => {
   }
 });
 
+// plannedPath routes mp4/mov to the fast path only when the WebCodecs globals
+// are present; jsdom has none, so plant them to exercise the fast-path cap.
+function enableWebCodecs() {
+  window.VideoDecoder = function VideoDecoder() {};
+  window.VideoEncoder = function VideoEncoder() {};
+  window.EncodedVideoChunk = function EncodedVideoChunk() {};
+  window.OffscreenCanvas = function OffscreenCanvas() {};
+  window.MP4Box = {};
+  window.Mp4Muxer = {};
+}
+function disableWebCodecs() {
+  ['VideoDecoder', 'VideoEncoder', 'EncodedVideoChunk', 'OffscreenCanvas', 'MP4Box', 'Mp4Muxer']
+    .forEach((g) => delete window[g]);
+}
+afterEach(disableWebCodecs);
+
 const mk = (over = {}) => ({
   name: 'clip.mp4',
   status: 'ready',
@@ -48,7 +64,27 @@ describe('encodeBlocker', () => {
     }))).toMatch(/Target too small/);
   });
 
-  it('blocks an oversized input', () => {
+  it('applies the wasm 4 GB input cap to wasm-path files', () => {
+    // A .webm routes to the wasm engine, which keeps the 4 GB guardrail —
+    // regardless of whether WebCodecs is available.
+    enableWebCodecs();
+    expect(encodeBlocker(mk({ name: 'clip.webm', size: 5 * 1024 ** 3 })))
+      .toMatch(/over 4 GB/);
+  });
+
+  it('gives WebCodecs-path files the higher 64 GB input cap', () => {
+    enableWebCodecs();
+    // The same 5 GB as an mp4/H.264 takes the streamed fast path, which is
+    // not MEMFS-bound — well under 64 GB, so it is no longer blocked.
+    expect(encodeBlocker(mk({ size: 5 * 1024 ** 3 }))).toBeNull();
+    // ...and a fast-path file past 64 GB is blocked, with the higher number.
+    expect(encodeBlocker(mk({ size: 65 * 1024 ** 3 }))).toMatch(/over 64 GB/);
+  });
+
+  it('falls back to the 4 GB cap for mp4 when WebCodecs is unavailable', () => {
+    // No WebCodecs globals -> mp4 routes to wasm -> the conservative cap
+    // applies, because that file really will run on the wasm engine here.
+    disableWebCodecs();
     expect(encodeBlocker(mk({ size: 5 * 1024 ** 3 }))).toMatch(/over 4 GB/);
   });
 

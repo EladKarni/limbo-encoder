@@ -2,10 +2,10 @@
 // takes a `ctx` of the small surface it needs (file-list access, an updateFile
 // setter, the in-flight refs, toast, engine setter) so the hook that wires them
 // (src/hooks/useEncoder.js) stays a thin binding and these stay unit-testable.
-import { CODECS, MAX_INPUT_BYTES } from './codecs';
+import { CODECS } from './codecs';
 import {
   effDur, bitrateKbps, isTargetReachable, plannedOutBytes,
-  WASM_MAX_OUTPUT_BYTES, overWasmCeiling,
+  WASM_MAX_OUTPUT_BYTES, overWasmCeiling, inputCapBytes,
 } from './fit';
 import { plannedPath, transcodeMp4 } from './webcodecs';
 import { transcodeWasm, recover } from './ffmpegEncoder';
@@ -25,8 +25,10 @@ export function encodeBlocker(f) {
   if (!f.duration) return `Could not read the duration of ${f.name}`;
   if (!(f.targetMB > 0)) return `Set a target size for ${f.name} first`;
   if (!isTargetReachable(f)) return `Target too small for ${f.name} — trim it or pick a larger limit`;
-  if (f.size > MAX_INPUT_BYTES) return oversizedMsg(f.name);
-  if (overWasmCeiling(f, plannedPath(f))) return `${f.name}: ${overCeilingMsg}`;
+  const path = plannedPath(f);
+  const cap = inputCapBytes(path);
+  if (f.size > cap) return oversizedMsg(f.name, cap);
+  if (overWasmCeiling(f, path)) return `${f.name}: ${overCeilingMsg}`;
   return null;
 }
 

@@ -10,9 +10,13 @@ import {
   plannedOutBytes,
   estimateOutBytes,
   budgetKbps,
+  inputCapBytes,
+  outputGeometry,
+  videoQuality,
   MIN_VIDEO_KBPS,
   MIN_BPP,
 } from './fit';
+import { WASM_MAX_INPUT_BYTES, FAST_MAX_INPUT_BYTES } from './codecs';
 
 // A minimal file record; override per case.
 const mk = (over = {}) => ({
@@ -199,5 +203,75 @@ describe('estimateOutBytes', () => {
     });
     // origMB=20, ratio=1, est=min(100,20)=20 -> *1e6*0.97
     expect(estimateOutBytes(f)).toBeCloseTo(20e6 * 0.97, 0);
+  });
+});
+
+describe('inputCapBytes', () => {
+  it('gives the WebCodecs fast path the higher (64 GB) ceiling', () => {
+    expect(inputCapBytes('webcodecs')).toBe(FAST_MAX_INPUT_BYTES);
+  });
+
+  it('keeps the conservative (4 GB) guardrail for the wasm path', () => {
+    expect(inputCapBytes('wasm')).toBe(WASM_MAX_INPUT_BYTES);
+    // The fast-path ceiling is strictly larger — the whole point of the split.
+    expect(FAST_MAX_INPUT_BYTES).toBeGreaterThan(WASM_MAX_INPUT_BYTES);
+  });
+});
+
+describe('outputGeometry', () => {
+  it('uses source geometry and a 30 fps default when everything is Original', () => {
+    expect(outputGeometry(mk({
+      width: 1920, height: 1080, res: 'Original', fps: 'Original',
+    }))).toEqual({ w: 1920, h: 1080, fps: 30 });
+  });
+
+  it('caps height to the chosen resolution and scales width to keep aspect', () => {
+    expect(outputGeometry(mk({
+      width: 1920, height: 1080, res: '720p', fps: '24 fps',
+    }))).toEqual({ w: 1280, h: 720, fps: 24 });
+  });
+
+  it('never upscales past the source height', () => {
+    // A 480-tall source with a 720p cap stays at 480.
+    expect(outputGeometry(mk({ width: 640, height: 480, res: '720p' })).h).toBe(480);
+  });
+});
+
+describe('videoQuality', () => {
+  // A fixed bit budget spread over fewer pixels/frames must read as higher
+  // quality — the whole point of the advanced panel showing the tradeoff.
+  const base = {
+    size: 500e6, duration: 60, trimEnd: 60, targetMB: 200, width: 1920, height: 1080, codec: 'H.264',
+  };
+
+  it('returns null before geometry/bitrate are known', () => {
+    expect(videoQuality(mk({ targetMB: 0 }))).toBeNull();
+    expect(videoQuality(mk({ ...base, width: 0, height: 0 }))).toBeNull();
+  });
+
+  it('reports a higher band at lower resolution for the same target', () => {
+    const hi = videoQuality(mk({ ...base, res: 'Original', fps: '30 fps' }));
+    const lo = videoQuality(mk({ ...base, res: '360p', fps: '30 fps' }));
+    expect(lo.bpp).toBeGreaterThan(hi.bpp);
+    // Ordered band scale: the lower resolution is at least as good a label.
+    const order = ['Poor', 'Fair', 'Good', 'Excellent'];
+    expect(order.indexOf(lo.label)).toBeGreaterThanOrEqual(order.indexOf(hi.label));
+  });
+
+  it('reports a higher band at lower fps for the same target', () => {
+    const hi = videoQuality(mk({ ...base, res: '720p', fps: '60 fps' }));
+    const lo = videoQuality(mk({ ...base, res: '720p', fps: '24 fps' }));
+    expect(lo.bpp).toBeGreaterThan(hi.bpp);
+  });
+
+  it('judges VP8 harder than H.264 at the same geometry (needs more bits)', () => {
+    const h264 = videoQuality(mk({
+      ...base, res: '720p', fps: '30 fps', codec: 'H.264',
+    }));
+    const vp8 = videoQuality(mk({
+      ...base, res: '720p', fps: '30 fps', codec: 'VP8 (WebM)',
+    }));
+    // Same raw BPP, but VP8's is divided by its efficiency factor -> lower.
+    expect(vp8.bpp).toBeLessThan(h264.bpp);
   });
 });

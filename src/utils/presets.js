@@ -2,13 +2,14 @@
 // single source of truth for which files the app accepts and which take the
 // WebCodecs fast path. Three consumers used to each hardcode their own list
 // (the dropzone accept string, App.addFiles, plannedPath) and could drift.
-import { MAX_INPUT_BYTES } from './codecs';
+import { WASM_MAX_INPUT_BYTES } from './codecs';
 
-// Copy for files whose input size is over the app's cap. The cap is 4 GiB
-// (binary), but the label is deliberately the round decimal "4 GB": dividing
-// by 1e9 and flooring turns 4·1024^3 (≈4.29e9) back into 4 for the user.
-export const oversizedMsg = (name) => (
-  `${name} is over ${Math.floor(MAX_INPUT_BYTES / 1e9)} GB — trim it into parts first`
+// Copy for files whose input size is over the cap that applies to them. The
+// caps are binary (GiB) but the label is the round decimal the user expects,
+// so we floor the *binary* GiB count: 4·1024^3 → "4 GB", 64·1024^3 → "64 GB".
+// Defaults to the wasm cap so callers that don't know the path stay correct.
+export const oversizedMsg = (name, capBytes = WASM_MAX_INPUT_BYTES) => (
+  `${name} is over ${Math.floor(capBytes / (1024 ** 3))} GB — trim it into parts first`
 );
 
 export const PLATFORMS = [

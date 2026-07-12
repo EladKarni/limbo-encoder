@@ -114,7 +114,41 @@
 }
 
 .bitrateValue {
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 700;
   font-family: $mono;
   color: $muted-bright;
+}
+
+// A 4-segment track whose fill length + colour reflect the quality band, so
+// dropping resolution/fps visibly grows and greens the bar. One modifier
+// class per band sets both (see QUALITY_CLASS in AdvancedPanel.js).
+.qualityBar {
+  height: 5px;
+  border-radius: 3px;
+  background: $panel-inset;
+  overflow: hidden;
+  margin-top: -6px;
+}
+
+.qualityFill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.qPoor .qualityFill { width: 22%; background: $red; }
+.qFair .qualityFill { width: 50%; background: $amber; }
+.qGood .qualityFill { width: 78%; background: $green; }
+.qExcellent .qualityFill { width: 100%; background: $green-bright; }
+
+// The bitrate is now a secondary detail under the quality readout.
+.bitrateSub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-family: $mono;
+  color: $dim;
 }

@@ -3,11 +3,17 @@
 // codec. Also the app-chosen input-size cap. Fitting output to a target is a
 // separate concern — see src/utils/fit.js.
 
-// Hard input cap, chosen by this app. Inputs stream from disk on both paths
-// (WORKERFS mount on the wasm path, 16 MB slices on the WebCodecs path), so
-// this is a sanity bound on what a browser tab should attempt — not a
-// platform memory limit. See docs/ARCHITECTURE.md § Input and output limits.
-export const MAX_INPUT_BYTES = 4 * (1024 ** 3);
+// Input-size sanity bounds, chosen by this app — not platform memory limits.
+// Inputs stream from disk on both paths (WORKERFS mount on the wasm path,
+// 16 MB slices on the WebCodecs path), so nothing here is bound by machine
+// RAM. The cap is path-dependent: the WebCodecs fast path genuinely isn't
+// MEMFS-bound and has swallowed 13+ GB inputs in the wild, so it earns a much
+// higher ceiling; the wasm path keeps the conservative 4 GB guardrail. The
+// applicable cap for a given file is resolved by inputCapBytes() in fit.js
+// (which keys off the planned path). See docs/ARCHITECTURE.md § Input and
+// output limits.
+export const WASM_MAX_INPUT_BYTES = 4 * (1024 ** 3);
+export const FAST_MAX_INPUT_BYTES = 64 * (1024 ** 3);
 
 // Encoders available in the bundled ffmpeg.wasm core.
 export const CODECS = {

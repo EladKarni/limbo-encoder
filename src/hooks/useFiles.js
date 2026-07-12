@@ -1,8 +1,10 @@
 import {
   useState, useRef, useEffect, useCallback,
 } from 'react';
-import { CODEC_OPTIONS, MAX_INPUT_BYTES } from '../utils/codecs';
+import { CODEC_OPTIONS } from '../utils/codecs';
 import { PLATFORMS, isAcceptedVideo, oversizedMsg } from '../utils/presets';
+import { inputCapBytes } from '../utils/fit';
+import { plannedPath } from '../utils/webcodecs';
 
 let uid = 0;
 function genId() {
@@ -76,11 +78,16 @@ export default function useFiles(showToast) {
 
   const addFiles = useCallback((list) => {
     const videos = [...list].filter(isAcceptedVideo);
-    const oversized = videos.find((f) => f.size > MAX_INPUT_BYTES);
+    // The cap is per-file: a raw File has `.name` (so mp4/mov route to the
+    // WebCodecs fast path and earn the 64 GB ceiling) but no `.codec`, which
+    // plannedPath reads as the default H.264 — matching the codec a fresh
+    // record starts with, so this add-time verdict agrees with encode time.
+    const capOf = (f) => inputCapBytes(plannedPath(f));
+    const oversized = videos.find((f) => f.size > capOf(f));
     if (oversized) {
-      showToast(oversizedMsg(oversized.name), 'error');
+      showToast(oversizedMsg(oversized.name, capOf(oversized)), 'error');
     }
-    const accepted = videos.filter((f) => f.size <= MAX_INPUT_BYTES);
+    const accepted = videos.filter((f) => f.size <= capOf(f));
     if (!accepted.length) return;
     const created = accepted.map(makeFileRecord);
     setFiles((fs) => [...fs, ...created]);

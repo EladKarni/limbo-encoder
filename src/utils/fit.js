@@ -3,6 +3,7 @@
 // measured overshoot. Encoder rate control is treated as a request, never a
 // guarantee — see docs/ARCHITECTURE.md § Size-fitting strategy. Codec choice
 // is a separate concern — see src/utils/codecs.js.
+import { WASM_MAX_INPUT_BYTES, FAST_MAX_INPUT_BYTES } from './codecs';
 
 // --- Correction-loop constants (both retry loops share these) --------------
 // Accept an output up to this multiple of the target; encoders routinely
@@ -27,6 +28,35 @@ export const WASM_MAX_OUTPUT_BYTES = 1.7e9;
 // Below this many bits per pixel, encoders hit their quantizer ceiling and
 // overshoot the bitrate instead of honoring it (and the picture is mush).
 export const MIN_BPP = 0.035;
+
+// Perceptual-quality bands for the advanced panel, keyed off bits-per-pixel-
+// per-frame (BPP = bitrate / (w × h × fps)) normalized to an H.264 baseline.
+// BPP is the standard rough proxy for "how comfortably the bit budget covers
+// this picture": the SAME budget spread over fewer pixels (lower resolution)
+// or fewer frames (lower fps) buys a higher BPP and a sharper result — which
+// is exactly the tradeoff we want the user to see. Cut points are H.264-
+// referenced; other codecs are converted via CODEC_BPP_FACTOR before banding.
+//
+// Cut points triangulated from streaming-quality references: below ~0.1 BPP
+// H.264 shows blocking/artifacts, 0.1–0.15 is the standard "good" range, and
+// above ~0.2 is wasteful (visually identical at lower rates). ESPN ships 0.10
+// BPP at 720p and 0.20 for hard high-motion 360p. BPP already folds in
+// resolution and fps but stays content-dependent — high-motion footage needs
+// ~1.5–2× the BPP of a talking head for the same look — so treat these as a
+// rough perceptual read, not a promise.
+export const BPP_BANDS = [
+  { max: 0.04, label: 'Poor', hint: 'Blocky — drop resolution or fps, or raise the target.' },
+  { max: 0.08, label: 'Fair', hint: 'Watchable, some softness. Lower resolution/fps to sharpen it.' },
+  { max: 0.15, label: 'Good', hint: 'Looks fine for most content at this size.' },
+  { max: Infinity, label: 'Excellent', hint: 'Near-transparent — you could raise resolution/fps.' },
+];
+
+// How many times more bits a codec needs vs H.264 for the same quality, so a
+// VP8 stream is judged on the same scale (its BPP is divided by this before
+// banding). H.264 is the 1.0 baseline; VP8 needs ~1.25× the bits — it is only
+// modestly behind x264, but its weakness concentrates at the low bitrates a
+// fit-to-limit compressor operates in, so this is slightly conservative.
+export const CODEC_BPP_FACTOR = { 'H.264': 1, 'VP8 (WebM)': 1.25 };
 
 // Effective (trimmed) duration of a clip, in seconds.
 export function effDur(f) {
@@ -101,6 +131,47 @@ export function plannedOutBytes(f) {
 // import cycle with the WebCodecs routing.
 export function overWasmCeiling(f, path) {
   return path === 'wasm' && plannedOutBytes(f) > WASM_MAX_OUTPUT_BYTES;
+}
+
+// The input-size cap (bytes) that applies to a file, given its planned path.
+// The WebCodecs fast path streams the source in 16 MB slices and is not
+// MEMFS-bound (WORKERFS has handled 13+ GB inputs), so it earns the higher
+// ceiling; wasm-bound files keep the conservative guardrail. Path is passed
+// in — same reason as overWasmCeiling: no import cycle with the routing.
+export function inputCapBytes(path) {
+  return path === 'webcodecs' ? FAST_MAX_INPUT_BYTES : WASM_MAX_INPUT_BYTES;
+}
+
+// Effective output geometry the estimate should be judged on: the resolution
+// the user capped to (or the source), width scaled to preserve aspect, and the
+// output fps (defaulting to 30 for 'Original' — the same figure the wasm
+// budget assumes). Used by videoQuality; kept pure and source-driven.
+export function outputGeometry(f) {
+  const srcH = f.height || 1080;
+  const srcW = f.width || 1920;
+  const h = f.res && f.res !== 'Original' ? Math.min(parseInt(f.res, 10), srcH) : srcH;
+  const w = Math.round(srcW * (h / srcH));
+  const fps = f.fps && f.fps !== 'Original' ? parseInt(f.fps, 10) : 30;
+  return { w, h, fps };
+}
+
+// The perceptual quality of the planned encode as a { bpp, label, hint } band —
+// the read the advanced panel surfaces so resolution/codec/fps changes show
+// their quality tradeoff instead of a fixed budget number. bpp is the H.264-
+// normalized bits-per-pixel-per-frame; null when we can't compute it yet
+// (no bitrate/duration/geometry). Same budget, different spread: this is the
+// only place the res/codec/fps choices visibly move a number.
+export function videoQuality(f) {
+  // Without probed source geometry we would be judging outputGeometry's
+  // 1080p encoder-fallback, not the real picture — so report nothing yet.
+  if (!f || !f.width || !f.height) return null;
+  const kbps = bitrateKbps(f);
+  const { w, h, fps } = outputGeometry(f);
+  if (!kbps || !w || !h || !fps) return null;
+  const factor = CODEC_BPP_FACTOR[f.codec] || 1;
+  const bpp = (kbps * 1000) / (w * h * fps) / factor;
+  const band = BPP_BANDS.find((b) => bpp < b.max) || BPP_BANDS[BPP_BANDS.length - 1];
+  return { bpp, label: band.label, hint: band.hint };
 }
 
 // Rough output size estimate, in bytes.

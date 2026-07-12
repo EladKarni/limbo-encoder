@@ -6,6 +6,7 @@ import Selector from '../Selector/Selector';
 import EstimateCard from '../EstimateCard/EstimateCard';
 import AdvancedPanel from '../AdvancedPanel/AdvancedPanel';
 import Button from '../Button/Button';
+import WarningNote from '../WarningNote/WarningNote';
 import fileShape from '../../fileShape';
 
 // The settings rail for the active file: target preset, size estimate,
@@ -14,7 +15,8 @@ import fileShape from '../../fileShape';
 // onUpdate, and convert/toggle are callbacks.
 function Sidebar({
   active, isEncoding, showAdv, codecOptions, codecHint, estBytes, bitrateLabel,
-  convertLabel, canConvert, ready, onUpdate, onToggleAdv, onConvert,
+  quality, convertLabel, canConvert, convertHint, ready, onUpdate, onToggleAdv,
+  onConvert,
 }) {
   return (
     <aside
@@ -41,10 +43,15 @@ function Sidebar({
         codecHint={codecHint}
         onChange={(patch) => onUpdate(active.id, patch)}
         bitrateLabel={bitrateLabel}
+        quality={quality}
       />
       <Button onClick={onConvert} disabled={!ready || !canConvert}>
         {convertLabel}
       </Button>
+      {/* Why Convert is disabled, so a greyed button is never a dead end.
+          Only shown when the block is fixable copy (not the transient
+          "engine still loading" state, which the button label covers). */}
+      {!canConvert && convertHint && <WarningNote>{convertHint}</WarningNote>}
     </aside>
   );
 }
@@ -57,8 +64,14 @@ Sidebar.propTypes = {
   codecHint: PropTypes.string,
   estBytes: PropTypes.number.isRequired,
   bitrateLabel: PropTypes.string.isRequired,
+  quality: PropTypes.shape({
+    bpp: PropTypes.number,
+    label: PropTypes.string,
+    hint: PropTypes.string,
+  }),
   convertLabel: PropTypes.string.isRequired,
   canConvert: PropTypes.bool.isRequired,
+  convertHint: PropTypes.string,
   ready: PropTypes.bool.isRequired,
   onUpdate: PropTypes.func.isRequired,
   onToggleAdv: PropTypes.func.isRequired,
@@ -67,6 +80,8 @@ Sidebar.propTypes = {
 
 Sidebar.defaultProps = {
   codecHint: null,
+  convertHint: null,
+  quality: null,
 };
 
 export default Sidebar;

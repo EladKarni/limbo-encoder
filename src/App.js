@@ -7,10 +7,12 @@ import Sidebar from './Components/Sidebar/Sidebar';
 import Toast from './Components/Toast/Toast';
 import KofiWidget from './Components/KofiWidget/KofiWidget';
 import { CODECS, CODEC_OPTIONS } from './utils/codecs';
-import { bitrateKbps, estimateOutBytes, overWasmCeiling } from './utils/fit';
+import {
+  bitrateKbps, estimateOutBytes, overWasmCeiling, videoQuality,
+} from './utils/fit';
 import { plannedPath } from './utils/webcodecs';
 import { ACCEPT_VIDEO } from './utils/presets';
-import { canEncode, overCeilingMsg } from './utils/encodePipeline';
+import { canEncode, encodeBlocker, overCeilingMsg } from './utils/encodePipeline';
 import useToast from './hooks/useToast';
 import useFiles from './hooks/useFiles';
 import useEngine from './hooks/useEngine';
@@ -39,11 +41,20 @@ function App() {
   const isEncoding = files.some((f) => f.status === 'encoding');
   const readyCount = files.filter((f) => f.status === 'ready').length;
   const br = active ? bitrateKbps(active) : 0;
+  // The quality band the current res/codec/fps buys at this bit budget — the
+  // one figure in the advanced panel that visibly responds to those choices.
+  const quality = active ? videoQuality(active) : null;
 
   const encodable = files.filter(canEncode);
   const canConvert = files.length > 1
     ? encodable.length > 0
     : Boolean(active && encodable.some((f) => f.id === active.id));
+
+  // Why Convert is disabled for the active file, as fixable copy — so a greyed
+  // button is never a dead end. encodeBlocker returns '' for not-ready-no-
+  // message and null when ready; only a non-empty string is worth surfacing.
+  const activeBlocker = active ? encodeBlocker(active) : '';
+  const convertHint = activeBlocker || null;
 
   const openPicker = () => pickerRef.current && pickerRef.current.click();
   const runConvert = () => {
@@ -86,8 +97,10 @@ function App() {
               codecHint={(CODECS[active.codec] || CODECS['H.264']).hint}
               estBytes={estimateOutBytes(active)}
               bitrateLabel={br > 0 ? `${br.toLocaleString()} kbps` : '—'}
+              quality={quality}
               convertLabel={files.length > 1 ? `Convert all (${readyCount})` : 'Convert'}
               canConvert={canConvert}
+              convertHint={files.length > 1 ? null : convertHint}
               ready={ready}
               onUpdate={updateFile}
               onToggleAdv={() => setShowAdv((s) => !s)}
